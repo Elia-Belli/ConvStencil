@@ -1,6 +1,6 @@
 # ConvStencil
 
-> ConvStencil: Transform Stencil Computation to Matrix Multiplication on Tensor Cores
+This repository contains code for our paper _ConvStencil: Transform Stencil Computation to Matrix Multiplication on Tensor Cores_, which won the best paper award of PPoPP'24.
 
 ## Abstract
 
