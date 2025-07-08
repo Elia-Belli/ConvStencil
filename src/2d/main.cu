@@ -197,9 +197,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    double param_1r[9] = {0.0};
+    double param_1r[9] = {0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0};
     bool breakdown = false;
-    if (std::string(argv[5]) == "--custom")
+    if (argc = 6 && std::string(argv[5]) == "--custom")
     {
         int num_param = 9;
         if (arg1 == "box2d1r")
