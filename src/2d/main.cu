@@ -319,6 +319,12 @@ int main(int argc, char *argv[])
         break;
     }
 
+
+    for(int i = 0; i < 49; i++)
+    {
+        printf("%lf, ", param[i]);
+    }
+    
     // print brief info
     printf("INFO: shape = %s, m = %d, n = %d, times = %d\n", ShapeStr[compute_shape], m, n, times);
 
