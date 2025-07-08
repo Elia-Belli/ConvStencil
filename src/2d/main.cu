@@ -20,7 +20,7 @@ const char *ShapeStr[5] = {
 // #define FILL_INDEX
 
 // Check the correctness of the result or not
-// #define CHECK_ERROR
+#define CHECK_ERROR
 const double tolerance = 1e-7;
 
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
@@ -28,6 +28,9 @@ const double tolerance = 1e-7;
 
 // Write the output to file or not
 // #define WRITE_OUTPUT
+
+// Write output to stdout
+#define PRINT_OUTPUT
 
 /* Global variable */
 int NY;
@@ -52,6 +55,19 @@ void save_to_txt(double *arr, int rows, int cols, const char *filename)
     }
 
     fclose(file);
+}
+
+void print_matrix(double *arr, int rows, int cols)
+{
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            printf("%.0f\t", arr[IDX(i, j, cols)]);
+        }
+        printf("\n");
+    }
+
 }
 
 void naive_box2d1r(double *in, double *out, double *param, const int input_m, const int input_n)
@@ -385,7 +401,14 @@ int main(int argc, char *argv[])
     }
 
     int t = 0;
-    if (compute_shape == box_2d1r_step3)
+    if (compute_shape == box_2d1r || compute_shape == star_2d1r)
+    {
+        for (; t < times; t++)
+        {
+            naive_box2d1r(naive[t % 2], naive[(t + 1) % 2], param, rows, cols);
+        }
+    }
+    else if (compute_shape == box_2d3r)
     {
         for (; t < times; t++)
         {
@@ -405,14 +428,21 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    // write to file
-
+// write to file
 #ifdef WRITE_OUTPUT
 #ifdef RUN_GPU
     printf("Writing output_gpu.txt\n");
     save_to_txt(output, rows, cols, "output_gpu.txt");
     save_to_txt(naive[t % 2], rows, cols, "output_naive.txt");
 #endif
+#endif
+
+// write to sdout
+#ifdef PRINT_OUTPUT
+    printf("Output GPU\n");
+    print_matrix(output, rows, cols);
+    printf("Output CPU\n");
+    print_matrix(naive[t % 2], rows, cols);
 #endif
 
     // free space
