@@ -199,7 +199,7 @@ int main(int argc, char *argv[])
 
     double param_1r[9] = {0.0};
     bool breakdown = false;
-    if (argc == 6 && std::string(argv[5]) == "--custom")
+    if (std::string(argv[5]) == "--custom")
     {
         int num_param = 9;
         if (arg1 == "box2d1r")
@@ -322,9 +322,12 @@ int main(int argc, char *argv[])
 
     for(int i = 0; i < 49; i++)
     {
-        printf("%lf, ", param[i]);
+        if(param[i] != 0)
+            printf("%lf, ", param[i]);
+        
+        printf("\n");
     }
-    
+
     // print brief info
     printf("INFO: shape = %s, m = %d, n = %d, times = %d\n", ShapeStr[compute_shape], m, n, times);
 
