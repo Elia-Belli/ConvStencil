@@ -306,7 +306,7 @@ int main(int argc, char *argv[])
         halo = 3;
         break;
     case star_2d1r:
-        param = param_star_2d1r;
+        param = param_box_2d1r;
         halo = 3;
         break;
     case star_2d3r:
