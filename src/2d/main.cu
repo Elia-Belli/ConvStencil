@@ -27,7 +27,8 @@ const double tolerance = 1e-7;
 #define ABS(x, y) (((x) > (y)) ? ((x) - (y)) : ((y) - (x)))
 
 // Write the output to file or not
-// #define WRITE_OUTPUT
+#define WRITE_OUTPUT
+#define RUN_GPU
 
 // Write output to stdout
 #define PRINT_OUTPUT
@@ -432,8 +433,8 @@ int main(int argc, char *argv[])
 #ifdef WRITE_OUTPUT
 #ifdef RUN_GPU
     printf("Writing output_gpu.txt\n");
-    save_to_txt(output, rows, cols, "output_gpu.txt");
-    save_to_txt(naive[t % 2], rows, cols, "output_naive.txt");
+    save_to_txt(output, rows, cols, "./out/output_gpu.txt");
+    save_to_txt(naive[t % 2], rows, cols, "./out/output_naive.txt");
 #endif
 #endif
 
