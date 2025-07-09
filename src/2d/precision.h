@@ -1,5 +1,9 @@
 #pragma once
 
+// Choose floating point precision
+#define USE_DOUBLE_PRECISION
+// #define USE_FLOAT_PRECISION
+
 #ifdef USE_DOUBLE_PRECISION
   using real_t = double;
   #define REAL_FMT "%lf"

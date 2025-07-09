@@ -1,10 +1,6 @@
 #include <iostream>
 #include <random>
 #include <omp.h>
-
-// Choose floating point precision
-#define USE_DOUBLE_PRECISION
-// #define USE_FLOAT_PRECISION
 #include "precision.h"
 
 // #include "type.h"

@@ -11,10 +11,6 @@
 
 // #include <cuda_runtime_api.h>
 // #include <library_types.h>
-
-// Choose floating point precision
-#define USE_DOUBLE_PRECISION
-// #define USE_FLOAT_PRECISION
 #include "precision.h"
 
 // memory alignment

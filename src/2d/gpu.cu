@@ -5,10 +5,6 @@
 #include <iostream>
 #include <chrono>
 #include "2d_utils.h"
-
-// Choose floating point precision
-#define USE_DOUBLE_PRECISION
-// #define USE_FLOAT_PRECISION
 #include "precision.h"
 
 using namespace nvcuda;
