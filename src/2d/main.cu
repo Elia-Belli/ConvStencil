@@ -1,4 +1,5 @@
 #include <iostream>
+#include <random>
 #include <omp.h>
 // #include "type.h"
 // #include "../utils.h"
@@ -16,8 +17,8 @@ const char *ShapeStr[5] = {
 };
 
 // Fill the matrix with random numbers or indices
-// #define FILL_RANDOM
-#define FILL_INDEX
+#define FILL_RANDOM
+//#define FILL_INDEX
 
 // Check the correctness of the result or not
 #define CHECK_ERROR
@@ -319,15 +320,6 @@ int main(int argc, char *argv[])
         break;
     }
 
-
-    for(int i = 0; i < 49; i++)
-    {
-        if(param[i] != 0)
-            printf("%lf, ", param[i]);
-        
-        printf("\n");
-    }
-
     // print brief info
     printf("INFO: shape = %s, m = %d, n = %d, times = %d\n", ShapeStr[compute_shape], m, n, times);
 
@@ -344,10 +336,12 @@ int main(int argc, char *argv[])
     // fill input matrix
 
 #if defined(FILL_RANDOM)
+    std::mt19937 gen(0);
+    std::uniform_real_distribution<double> dis(0.0, 100.0);
 #pragma unroll
     for (int i = 0; i < rows * cols; i++)
-    {
-        matrix[i] = (double)(rand() % 100);
+    {   
+        matrix[i] = dis(gen);
     }
 #elif defined(FILL_INDEX)
     for (int i = 0; i < rows; i++)
