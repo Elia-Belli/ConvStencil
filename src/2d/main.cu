@@ -341,7 +341,7 @@ int main(int argc, char *argv[])
 #pragma unroll
     for (int i = 0; i < rows * cols; i++)
     {   
-        matrix[i] = dis(gen);
+        matrix[i] = (double) dis(gen);
     }
 #elif defined(FILL_INDEX)
     for (int i = 0; i < rows; i++)
