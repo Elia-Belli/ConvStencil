@@ -1,13 +1,19 @@
 #include <iostream>
 #include <random>
 #include <omp.h>
+
+// Choose floating point precision
+#define USE_DOUBLE_PRECISION
+// #define USE_FLOAT_PRECISION
+#include "precision.h"
+
 // #include "type.h"
 // #include "../utils.h"
-#include "2d_utils.h"
 // #include "mix/mix.h"
 // #include "cpu/cpu.h"
 // #include "gpu/gpu.h"
 // #include "heat/heat.h"
+#include "2d_utils.h"
 
 const char *ShapeStr[5] = {
     "star_2d1r",
@@ -16,13 +22,14 @@ const char *ShapeStr[5] = {
     "box_2d3r",
 };
 
+
 // Fill the matrix with random numbers or indices
 #define FILL_RANDOM
 //#define FILL_INDEX
 
 // Check the correctness of the result or not
 #define CHECK_ERROR
-const double tolerance = 1e-7;
+const real_t tolerance = 1e-7;
 
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
 #define ABS(x, y) (((x) > (y)) ? ((x) - (y)) : ((y) - (x)))
@@ -38,7 +45,7 @@ const double tolerance = 1e-7;
 int NY;
 int XSLOPE, YSLOPE;
 
-void save_to_txt(double *arr, int rows, int cols, const char *filename)
+void save_to_txt(real_t *arr, int rows, int cols, const char *filename)
 {
     FILE *file = fopen(filename, "w");
     if (file == NULL)
@@ -51,7 +58,7 @@ void save_to_txt(double *arr, int rows, int cols, const char *filename)
     {
         for (int j = 0; j < cols; j++)
         {
-            fprintf(file, "%.0f\t", arr[IDX(i, j, cols)]);
+            fprintf(file, "%.2f\t", arr[IDX(i, j, cols)]);
         }
         fprintf(file, "\n");
     }
@@ -59,20 +66,20 @@ void save_to_txt(double *arr, int rows, int cols, const char *filename)
     fclose(file);
 }
 
-void print_matrix(double *arr, int rows, int cols)
+void print_matrix(real_t *arr, int rows, int cols)
 {
     for (int i = 0; i < rows; i++)
     {
         for (int j = 0; j < cols; j++)
         {
-            printf("%.0f\t", arr[IDX(i, j, cols)]);
+            printf("%.2f\t", arr[IDX(i, j, cols)]);
         }
         printf("\n");
     }
 
 }
 
-void naive_box2d1r(double *in, double *out, double *param, const int input_m, const int input_n)
+void naive_box2d1r(real_t *in, real_t *out, real_t *param, const int input_m, const int input_n)
 {
     for (int row = 3; row < input_m - 3; row++)
     {
@@ -198,7 +205,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    double param_1r[9] = {0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0};
+    real_t param_1r[9] = {0.0, 1.0, 0.0, 1.0, -4.0, 1.0, 0.0, 1.0, 0.0};
     bool breakdown = false;
     if (argc == 6 && std::string(argv[5]) == "--custom")
     {
@@ -212,7 +219,7 @@ int main(int argc, char *argv[])
             num_param = 5;
         }
         printf("Please enter %d parameters:\n", num_param);
-        double values[num_param];
+        real_t values[num_param];
         for (int i = 0; i < num_param; i++)
         {
             int readNum = scanf("%lf", &values[i]);
@@ -240,8 +247,8 @@ int main(int argc, char *argv[])
         breakdown = true;
     }
 
-    double param_box_2d1r[49] = {0.0};
-    double param_star_2d1r[49] = {0.0};
+    real_t param_box_2d1r[49] = {0.0};
+    real_t param_star_2d1r[49] = {0.0};
 
     for (int i = 0; i < 49; i++)
     {
@@ -298,7 +305,7 @@ int main(int argc, char *argv[])
     param_box_2d1r[47] = 3 * param_1r[7] * param_1r[8] * param_1r[8];
     param_box_2d1r[48] = param_1r[8] * param_1r[8] * param_1r[8];
 
-    double *param;
+    real_t *param;
     int halo;
     switch (compute_shape)
     {
@@ -326,29 +333,29 @@ int main(int argc, char *argv[])
     int rows = m + 2 * halo;
     int cols = n + 2 * halo + 2;
     NY = n;
-    size_t matrix_size = (unsigned long)rows * cols * sizeof(double);
+    size_t matrix_size = (unsigned long)rows * cols * sizeof(real_t);
 
     // allocate space
 
-    double *matrix = (double *)malloc(matrix_size);
-    double *output = (double *)malloc(matrix_size);
+    real_t *matrix = (real_t *)malloc(matrix_size);
+    real_t *output = (real_t *)malloc(matrix_size);
 
     // fill input matrix
 
 #if defined(FILL_RANDOM)
     std::mt19937 gen(0);
-    std::uniform_real_distribution<double> dis(0.0, 100.0);
+    std::uniform_real_distribution<real_t> dis(0.0, 100.0);
 #pragma unroll
     for (int i = 0; i < rows * cols; i++)
     {   
-        matrix[i] = (double) dis(gen);
+        matrix[i] = (real_t) dis(gen);
     }
 #elif defined(FILL_INDEX)
     for (int i = 0; i < rows; i++)
     {
         for (int j = 1; j < cols - 1; j++)
         {
-            matrix[i * cols + j] = (double)(i * (cols - 2) + j);
+            matrix[i * cols + j] = (real_t)(i * (cols - 2) + j);
         }
     }
 #else
@@ -394,9 +401,9 @@ int main(int argc, char *argv[])
 
 #if defined(CHECK_ERROR)
     printf("\nChecking ... \n");
-    double *naive[2];
-    naive[0] = (double *)malloc(matrix_size);
-    naive[1] = (double *)malloc(matrix_size);
+    real_t *naive[2];
+    naive[0] = (real_t *)malloc(matrix_size);
+    naive[1] = (real_t *)malloc(matrix_size);
 
     for (int i = 0; i < rows * cols; i++)
     {

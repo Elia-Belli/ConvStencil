@@ -3,8 +3,9 @@
 // #include <cuda_runtime.h>
 // #include "../utils.h"
 #include <iostream>
-#include "2d_utils.h"
 #include <chrono>
+#include "2d_utils.h"
+#include "precision.h"
 
 using namespace nvcuda;
 
@@ -24,11 +25,11 @@ using namespace nvcuda;
 #define MMA_NUM 13
 #define ceild(n,d)	(((n)-1)/(d) + 1)
 
-__constant__ double param_matrix_d[2 * 52 * TENSOR_CORE_M];
+__constant__ real_t param_matrix_d[2 * 52 * TENSOR_CORE_M];
 
 
-__global__ void kernel2d (const double * __restrict__ in, double * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
-    __shared__ double sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
+__global__ void kernel2d (const real_t * __restrict__ in, real_t * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
+    __shared__ real_t sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
     int tid = threadIdx.x;
     int totalThreads = blockDim.x;
@@ -44,15 +45,15 @@ __global__ void kernel2d (const double * __restrict__ in, double * __restrict__ 
 
     int warp_id = threadIdx.x / 32;
 
-    nvcuda::wmma::fragment<wmma::matrix_b, 8, 8, 4, double, wmma::row_major> param_frag[2][MMA_NUM];
+    nvcuda::wmma::fragment<wmma::matrix_b, 8, 8, 4, real_t, wmma::row_major> param_frag[2][MMA_NUM];
 #pragma unroll
     for (int i = 0; i < MMA_NUM; i++) {
         nvcuda::wmma::load_matrix_sync(param_frag[0][i], param_matrix_d + i * 32, 8);
         nvcuda::wmma::load_matrix_sync(param_frag[1][i], param_matrix_d + 52 * 8 + i * 32, 8);
     }
 
-    wmma::fragment<wmma::accumulator, 8, 8, 4, double> acc_frag;
-    wmma::fragment<wmma::matrix_a, 8, 8, 4, double, wmma::row_major> in_frag;
+    wmma::fragment<wmma::accumulator, 8, 8, 4, real_t> acc_frag;
+    wmma::fragment<wmma::matrix_a, 8, 8, 4, real_t, wmma::row_major> in_frag;
     for (int col = warp_id * 28; col < warp_id * 28 + 28; col += UNIT_LENGTH) {
         wmma::fill_fragment(acc_frag, 0.0);
 #pragma unroll
@@ -69,8 +70,8 @@ __global__ void kernel2d (const double * __restrict__ in, double * __restrict__ 
     }
 }
 
-__global__ void breakdown4_kernel (const double * __restrict__ in, double * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
-    __shared__ double sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
+__global__ void breakdown4_kernel (const real_t * __restrict__ in, real_t * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
+    __shared__ real_t sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
     int tid = threadIdx.x;
     int totalThreads = blockDim.x;
@@ -90,15 +91,15 @@ __global__ void breakdown4_kernel (const double * __restrict__ in, double * __re
 
     int warp_id = threadIdx.x / 32;
 
-    nvcuda::wmma::fragment<wmma::matrix_b, 8, 8, 4, double, wmma::row_major> param_frag[2][MMA_NUM];
+    nvcuda::wmma::fragment<wmma::matrix_b, 8, 8, 4, real_t, wmma::row_major> param_frag[2][MMA_NUM];
 #pragma unroll
     for (int i = 0; i < MMA_NUM; i++) {
         nvcuda::wmma::load_matrix_sync(param_frag[0][i], param_matrix_d + i * 32, 8);
         nvcuda::wmma::load_matrix_sync(param_frag[1][i], param_matrix_d + 52 * 8 + i * 32, 8);
     }
 
-    wmma::fragment<wmma::accumulator, 8, 8, 4, double> acc_frag;
-    wmma::fragment<wmma::matrix_a, 8, 8, 4, double, wmma::row_major> in_frag;
+    wmma::fragment<wmma::accumulator, 8, 8, 4, real_t> acc_frag;
+    wmma::fragment<wmma::matrix_a, 8, 8, 4, real_t, wmma::row_major> in_frag;
     for (int col = warp_id * 4*7; col < warp_id *4*7 + 4*7; col += UNIT_LENGTH) {
         wmma::fill_fragment(acc_frag, 0.0);
 #pragma unroll
@@ -115,8 +116,8 @@ __global__ void breakdown4_kernel (const double * __restrict__ in, double * __re
     }
 }
 
-__global__ void breakdown3_kernel(const double * __restrict__ in, double * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
-    __shared__ double sharedmem[2][SM_SIZE_ROW * (SM_SIZE_COL - PAD)];
+__global__ void breakdown3_kernel(const real_t * __restrict__ in, real_t * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
+    __shared__ real_t sharedmem[2][SM_SIZE_ROW * (SM_SIZE_COL - PAD)];
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
     int tid = threadIdx.x;
     int totalThreads = blockDim.x;
@@ -136,15 +137,15 @@ __global__ void breakdown3_kernel(const double * __restrict__ in, double * __res
 
     int warp_id = threadIdx.x / 32;
 
-    nvcuda::wmma::fragment<wmma::matrix_b, 8, 8, 4, double, wmma::row_major> param_frag[2][MMA_NUM];
+    nvcuda::wmma::fragment<wmma::matrix_b, 8, 8, 4, real_t, wmma::row_major> param_frag[2][MMA_NUM];
 #pragma unroll
     for (int i = 0; i < MMA_NUM; i++) {
         nvcuda::wmma::load_matrix_sync(param_frag[0][i], param_matrix_d + i * 32, 8);
         nvcuda::wmma::load_matrix_sync(param_frag[1][i], param_matrix_d + 52 * 8 + i * 32, 8);
     }
 
-    wmma::fragment<wmma::accumulator, 8, 8, 4, double> acc_frag;
-    wmma::fragment<wmma::matrix_a, 8, 8, 4, double, wmma::row_major> in_frag;
+    wmma::fragment<wmma::accumulator, 8, 8, 4, real_t> acc_frag;
+    wmma::fragment<wmma::matrix_a, 8, 8, 4, real_t, wmma::row_major> in_frag;
     for (int col = warp_id * 4*7; col < warp_id *4*7 + 4*7; col += UNIT_LENGTH) {
         wmma::fill_fragment(acc_frag, 0.0);
 #pragma unroll
@@ -162,8 +163,8 @@ __global__ void breakdown3_kernel(const double * __restrict__ in, double * __res
     }
 }
 
-__global__ void breakdown2_kernel (const double * __restrict__ in, double * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
-    __shared__ double sharedmem[2][SM_SIZE_ROW * (SM_SIZE_COL - PAD)];
+__global__ void breakdown2_kernel (const real_t * __restrict__ in, real_t * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
+    __shared__ real_t sharedmem[2][SM_SIZE_ROW * (SM_SIZE_COL - PAD)];
 
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);//分块
 
@@ -186,7 +187,7 @@ __global__ void breakdown2_kernel (const double * __restrict__ in, double * __re
 
     for(int row=x;row<SM_SIZE_ROW;row+=blockDim.x){
         for(int col=7*y;col<(SM_SIZE_COL - PAD)-49+7;col+=7*blockDim.y){
-            double result[8]={};
+            real_t result[8]={};
             for(int i=0;i<7;++i)
                 for(int k=0;k<7*7;++k){
                     result[i]+=sharedmem[0][IDX(row,col+k,(SM_SIZE_COL - PAD))]*param_matrix_d[IDX(k,i,7)];
@@ -198,8 +199,8 @@ __global__ void breakdown2_kernel (const double * __restrict__ in, double * __re
     }
 }
 
-__global__ void breakdown1_kernel ( double * __restrict__ in, double * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2,double* __restrict__ la,double * __restrict__ lb) {
-    __shared__ double sharedmem[2][SM_SIZE_ROW * (SM_SIZE_COL - PAD)];
+__global__ void breakdown1_kernel ( real_t * __restrict__ in, real_t * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2,real_t* __restrict__ la,real_t * __restrict__ lb) {
+    __shared__ real_t sharedmem[2][SM_SIZE_ROW * (SM_SIZE_COL - PAD)];
 
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
 
@@ -223,7 +224,7 @@ __global__ void breakdown1_kernel ( double * __restrict__ in, double * __restric
     __syncthreads();
     for(int row=x;row<SM_SIZE_ROW;row+=blockDim.x){
         for(int col=7*y;col<(SM_SIZE_COL - PAD)-49+7;col+=7*blockDim.y){
-            double result[8]={};
+            real_t result[8]={};
             for(int i=0;i<7;++i)
                 for(int k=0;k<7*7;++k){
                     result[i]+=la[gbegin+IDX(row,col+k,(SM_SIZE_COL - PAD))]*param_matrix_d[IDX(k,i,7)];
@@ -242,8 +243,8 @@ __global__ void breakdown1_kernel ( double * __restrict__ in, double * __restric
  * @param params parameter array pointer (length 49)
  * 
 */
-void gpu_box_2d1r(const double * __restrict__ in, double * __restrict__ out, const double * __restrict__ params, const int times, const int input_m, const int input_n) {
-    double param_matrix_h[2][52 * 8] = {0.0};
+void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int times, const int input_m, const int input_n) {
+    real_t param_matrix_h[2][52 * 8] = {0.0};
 
     // Initialize parameter matrix
     for (int col = 0; col < TENSOR_CORE_M; col++) {
@@ -264,12 +265,12 @@ void gpu_box_2d1r(const double * __restrict__ in, double * __restrict__ out, con
             }
         }
     }
-    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, 2 * 8 * 52 * sizeof(double)));
+    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, 2 * 8 * 52 * sizeof(real_t)));
 
     const int rows = input_m + 2 * HALO;
     const int cols = input_n + 2 * HALO + 2;
-    const size_t array_size = rows * cols * sizeof(double);
-    double *  array_d[2];
+    const size_t array_size = rows * cols * sizeof(real_t);
+    real_t *  array_d[2];
     CUDA_CHECK(cudaMalloc(&array_d[0], array_size));
     CUDA_CHECK(cudaMalloc(&array_d[1], array_size));
     CUDA_CHECK(cudaMemset(array_d[0], 0, array_size));
@@ -324,17 +325,17 @@ void gpu_box_2d1r(const double * __restrict__ in, double * __restrict__ out, con
     std::cout << "ConvStencil(2D): " << std::endl;
     std::cout << "Time = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     
-    double secs = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1e6;
+    real_t secs = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1e6;
 
-    printf("GStencil/s = %f\n", ((double)input_m * input_n * times * 3) / secs / 1e9);
+    printf("GStencil/s = %f\n", ((real_t)input_m * input_n * times * 3) / secs / 1e9);
     
     CUDA_CHECK(cudaMemcpy(out, array_d[i % 2], array_size, cudaMemcpyDeviceToHost));
 
     return;
 }
 
-void gpu_box_2d3r(const double * __restrict__ in, double * __restrict__ out, const double * __restrict__ params, const int times, const int input_m, const int input_n) {
-    double param_matrix_h[2][52 * 8] = {0.0};
+void gpu_box_2d3r(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int times, const int input_m, const int input_n) {
+    real_t param_matrix_h[2][52 * 8] = {0.0};
 
     // Initialize parameter matrix
     for (int col = 0; col < TENSOR_CORE_M; col++) {
@@ -355,12 +356,12 @@ void gpu_box_2d3r(const double * __restrict__ in, double * __restrict__ out, con
             }
         }
     }
-    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, 2 * 8 * 52 * sizeof(double)));
+    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, 2 * 8 * 52 * sizeof(real_t)));
 
     const int rows = input_m + 2 * HALO;
     const int cols = input_n + 2 * HALO + 2;
-    const size_t array_size = rows * cols * sizeof(double);
-    double *  array_d[2];
+    const size_t array_size = rows * cols * sizeof(real_t);
+    real_t *  array_d[2];
     CUDA_CHECK(cudaMalloc(&array_d[0], array_size));
     CUDA_CHECK(cudaMalloc(&array_d[1], array_size));
     CUDA_CHECK(cudaMemset(array_d[0], 0, array_size));
@@ -415,9 +416,9 @@ void gpu_box_2d3r(const double * __restrict__ in, double * __restrict__ out, con
     std::cout << "ConvStencil(2D): " << std::endl;
     std::cout << "Time = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     
-    double secs = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1e6;
+    real_t secs = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1e6;
 
-    printf("GStencil/s = %f\n", ((double)input_m * input_n * times) / secs / 1e9);
+    printf("GStencil/s = %f\n", ((real_t)input_m * input_n * times) / secs / 1e9);
     
     CUDA_CHECK(cudaMemcpy(out, array_d[i % 2], array_size, cudaMemcpyDeviceToHost));
 
@@ -431,8 +432,8 @@ void gpu_box_2d3r(const double * __restrict__ in, double * __restrict__ out, con
  * @param params parameter array pointer (length 49)
  * 
 */
-void gpu_box_2d1r_breakdown4(const double * __restrict__ in, double * __restrict__ out, const double * __restrict__ params, const int times, const int input_m, const int input_n) {
-    double param_matrix_h[2][52 * 8] = {0.0};
+void gpu_box_2d1r_breakdown4(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int times, const int input_m, const int input_n) {
+    real_t param_matrix_h[2][52 * 8] = {0.0};
 
     // Initialize parameter matrix
     for (int col = 0; col < TENSOR_CORE_M; col++) {
@@ -453,12 +454,12 @@ void gpu_box_2d1r_breakdown4(const double * __restrict__ in, double * __restrict
             }
         }
     }
-    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, 2 * 8 * 52 * sizeof(double)));
+    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, 2 * 8 * 52 * sizeof(real_t)));
 
     const int rows = input_m + 2 * HALO;
     const int cols = input_n + 2 * HALO + 2;
-    const size_t array_size = rows * cols * sizeof(double);
-    double *  array_d[2];
+    const size_t array_size = rows * cols * sizeof(real_t);
+    real_t *  array_d[2];
     CUDA_CHECK(cudaMalloc(&array_d[0], array_size));
     CUDA_CHECK(cudaMalloc(&array_d[1], array_size));
     CUDA_CHECK(cudaMemset(array_d[0], 0, array_size));
@@ -513,9 +514,9 @@ void gpu_box_2d1r_breakdown4(const double * __restrict__ in, double * __restrict
     std::cout << "Experiment - Breakdown(2D) 4: " << std::endl;
     std::cout << "Time = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     
-    double secs = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1e6;
+    real_t secs = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1e6;
 
-    printf("GStencil/s = %f\n\n", ((double)input_m * input_n * times * 3) / secs / 1e9);
+    printf("GStencil/s = %f\n\n", ((real_t)input_m * input_n * times * 3) / secs / 1e9);
     
     CUDA_CHECK(cudaMemcpy(out, array_d[i % 2], array_size, cudaMemcpyDeviceToHost));
 
@@ -528,8 +529,8 @@ void gpu_box_2d1r_breakdown4(const double * __restrict__ in, double * __restrict
  * @param params parameter array pointer (length 49)
  * 
 */
-void gpu_box_2d1r_breakdown3(const double * __restrict__ in, double * __restrict__ out, const double * __restrict__ params, const int times, const int input_m, const int input_n) {
-    double param_matrix_h[2][52 * 8] = {0.0};
+void gpu_box_2d1r_breakdown3(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int times, const int input_m, const int input_n) {
+    real_t param_matrix_h[2][52 * 8] = {0.0};
 
     // Initialize parameter matrix
     for (int col = 0; col < TENSOR_CORE_M; col++) {
@@ -550,12 +551,12 @@ void gpu_box_2d1r_breakdown3(const double * __restrict__ in, double * __restrict
             }
         }
     }
-    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, 2 * 8 * 52 * sizeof(double)));
+    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, 2 * 8 * 52 * sizeof(real_t)));
 
     const int rows = input_m + 2 * HALO;
     const int cols = input_n + 2 * HALO +2;
-    const size_t array_size = rows * cols * sizeof(double);
-    double *  array_d[2];
+    const size_t array_size = rows * cols * sizeof(real_t);
+    real_t *  array_d[2];
     CUDA_CHECK(cudaMalloc(&array_d[0], array_size));
     CUDA_CHECK(cudaMalloc(&array_d[1], array_size));
     CUDA_CHECK(cudaMemset(array_d[0], 0, array_size));
@@ -608,17 +609,17 @@ void gpu_box_2d1r_breakdown3(const double * __restrict__ in, double * __restrict
     std::cout << "Experiment - Breakdown(2D) 3: " << std::endl;
     std::cout << "Time = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     
-    double secs = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1e6;
+    real_t secs = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1e6;
 
-    printf("GStencil/s = %f\n\n", ((double)input_m * input_n * times * 3) / secs / 1e9);
+    printf("GStencil/s = %f\n\n", ((real_t)input_m * input_n * times * 3) / secs / 1e9);
     
     CUDA_CHECK(cudaMemcpy(out, array_d[i % 2], array_size, cudaMemcpyDeviceToHost));
 
     return;
 }
 
-void gpu_box_2d1r_breakdown2(const double * __restrict__ in, double * __restrict__ out, const double * __restrict__ params, const int times, const int input_m, const int input_n) {
-    double param_matrix_h[2][49 * 7] = {0.0};
+void gpu_box_2d1r_breakdown2(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int times, const int input_m, const int input_n) {
+    real_t param_matrix_h[2][49 * 7] = {0.0};
 
     // Initialize parameter matrix
     for (int col = 0; col < UNIT_LENGTH ; col++) {
@@ -640,12 +641,12 @@ void gpu_box_2d1r_breakdown2(const double * __restrict__ in, double * __restrict
         }
     }
 
-    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, 2 * 7 * 49 * sizeof(double)));
+    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, 2 * 7 * 49 * sizeof(real_t)));
 
     const int rows = input_m + 2 * HALO;
     const int cols = input_n + 2 * HALO+1 ;
-    const size_t array_size = rows * cols * sizeof(double);
-    double *  array_d[2];
+    const size_t array_size = rows * cols * sizeof(real_t);
+    real_t *  array_d[2];
     CUDA_CHECK(cudaMalloc(&array_d[0], array_size));
     CUDA_CHECK(cudaMalloc(&array_d[1], array_size));
     CUDA_CHECK(cudaMemset(array_d[0], 0, array_size));
@@ -697,17 +698,17 @@ void gpu_box_2d1r_breakdown2(const double * __restrict__ in, double * __restrict
     std::cout << "Experiment - Breakdown(2D) 2: " << std::endl;
     std::cout << "Time = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     
-    double secs = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1e6;
+    real_t secs = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1e6;
 
-    printf("GStencil/s = %f\n\n", ((double)input_m * input_n * times * 3) / secs / 1e9);
+    printf("GStencil/s = %f\n\n", ((real_t)input_m * input_n * times * 3) / secs / 1e9);
     
     CUDA_CHECK(cudaMemcpy(out, array_d[i % 2], array_size, cudaMemcpyDeviceToHost));
 
     return;
 }
 
-void gpu_box_2d1r_breakdown1(const double * __restrict__ in, double * __restrict__ out, const double * __restrict__ params, const int times, const int input_m, const int input_n) {
-    double param_matrix_h[2][49 * 7] = {0.0};
+void gpu_box_2d1r_breakdown1(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int times, const int input_m, const int input_n) {
+    real_t param_matrix_h[2][49 * 7] = {0.0};
 
     // Initialize parameter matrix
     for (int col = 0; col < UNIT_LENGTH ; col++) {
@@ -729,13 +730,13 @@ void gpu_box_2d1r_breakdown1(const double * __restrict__ in, double * __restrict
         }
     }
 
-    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, 2 * 7 * 49 * sizeof(double)));
+    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, 2 * 7 * 49 * sizeof(real_t)));
 
     const int rows = input_m + 2 * HALO;
     // const int cols = input_n + 2 * HALO + 2;
     const int cols = input_n + 2 * HALO+1 ;
-    const size_t array_size = rows * cols * sizeof(double);
-    double *  array_d[2];
+    const size_t array_size = rows * cols * sizeof(real_t);
+    real_t *  array_d[2];
     CUDA_CHECK(cudaMalloc(&array_d[0], array_size));
     CUDA_CHECK(cudaMalloc(&array_d[1], array_size));
     CUDA_CHECK(cudaMemset(array_d[0], 0, array_size));
@@ -749,9 +750,9 @@ void gpu_box_2d1r_breakdown1(const double * __restrict__ in, double * __restrict
     dim3 grid_config(BLOCK_M, BLOCK_N);
     dim3 block_config(8,32);
 
-    double* stencil2row[2];
-    CUDA_CHECK(cudaMalloc(&stencil2row[0], BLOCK_M*BLOCK_N*SM_SIZE_COL*SM_SIZE_ROW*sizeof(double)));//*0.75?
-    CUDA_CHECK(cudaMalloc(&stencil2row[1], BLOCK_M*BLOCK_N*SM_SIZE_COL*SM_SIZE_ROW*sizeof(double)));
+    real_t* stencil2row[2];
+    CUDA_CHECK(cudaMalloc(&stencil2row[0], BLOCK_M*BLOCK_N*SM_SIZE_COL*SM_SIZE_ROW*sizeof(real_t)));//*0.75?
+    CUDA_CHECK(cudaMalloc(&stencil2row[1], BLOCK_M*BLOCK_N*SM_SIZE_COL*SM_SIZE_ROW*sizeof(real_t)));
 
     // Lookup table
     int lookup_table1_h[D_BLOCK_SIZE_ROW][D_BLOCK_SIZE_COL];
@@ -791,9 +792,9 @@ void gpu_box_2d1r_breakdown1(const double * __restrict__ in, double * __restrict
     std::cout << "Experiment - Breakdown(2D) 1: " << std::endl;
     std::cout << "Time = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     
-    double secs = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1e6;
+    real_t secs = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1e6;
 
-    printf("GStencil/s = %f\n\n", ((double)input_m * input_n * times * 3) / secs / 1e9);
+    printf("GStencil/s = %f\n\n", ((real_t)input_m * input_n * times * 3) / secs / 1e9);
     
     CUDA_CHECK(cudaMemcpy(out, array_d[i % 2], array_size, cudaMemcpyDeviceToHost));
 

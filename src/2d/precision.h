@@ -1,8 +1,7 @@
-
 #ifdef USE_DOUBLE_PRECISION
-  #define REAL double
+  using real_t = double;
   #define REAL_FMT "%lf"
 #elif USE_FLOAT_PRECISION
-  #define REAL float
+  using real_t = float;
   #define REAL_FMT "%f"
 #endif
