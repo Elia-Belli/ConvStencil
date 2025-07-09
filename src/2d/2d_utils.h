@@ -12,7 +12,10 @@
 // #include <cuda_runtime_api.h>
 // #include <library_types.h>
 
-
+// Choose floating point precision
+#define USE_DOUBLE_PRECISION
+// #define USE_FLOAT_PRECISION
+#include "precision.h"
 
 // memory alignment
 #define ALIGN_TO(A, B) (((A + B - 1) / B) * B)
@@ -20,14 +23,14 @@
 // device memory pitch alignment
 static const size_t device_alignment = 32;
 
-// void gpu_box_2d1r(const double * __restrict__ in, double * __restrict__ out, const double * __restrict__ params, const int time, const int input_m, const int input_n);
+// void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int time, const int input_m, const int input_n);
 
-// __global__ void gpu_box_2d1r_step3_kernel (const double * __restrict__ in, double * __restrict__ out);
+// __global__ void gpu_box_2d1r_step3_kernel (const real_t * __restrict__ in, real_t * __restrict__ out);
 
 // #include <helper_cuda.h>
 // #include <helper_functions.h>
 
-#define DATA_TYPE double
+#define DATA_TYPE real_t
 
 #define TENSOR_CORE_M 8
 
@@ -74,14 +77,14 @@ enum Shape
     box_2d3r,
 };
 
-void gpu_box_2d1r(const double * __restrict__ in, double * __restrict__ out, const double * __restrict__ params, const int time, const int input_m, const int input_n);
+void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int time, const int input_m, const int input_n);
 
-void gpu_box_2d3r(const double * __restrict__ in, double * __restrict__ out, const double * __restrict__ params, const int time, const int input_m, const int input_n);
+void gpu_box_2d3r(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int time, const int input_m, const int input_n);
 
-void gpu_box_2d1r_breakdown4(const double * __restrict__ in, double * __restrict__ out, const double * __restrict__ params, const int time, const int input_m, const int input_n);
+void gpu_box_2d1r_breakdown4(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int time, const int input_m, const int input_n);
 
-void gpu_box_2d1r_breakdown3(const double * __restrict__ in, double * __restrict__ out, const double * __restrict__ params, const int time, const int input_m, const int input_n);
+void gpu_box_2d1r_breakdown3(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int time, const int input_m, const int input_n);
 
-void gpu_box_2d1r_breakdown2(const double * __restrict__ in, double * __restrict__ out, const double * __restrict__ params, const int time, const int input_m, const int input_n);
+void gpu_box_2d1r_breakdown2(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int time, const int input_m, const int input_n);
 
-void gpu_box_2d1r_breakdown1(const double * __restrict__ in, double * __restrict__ out, const double * __restrict__ params, const int time, const int input_m, const int input_n);
+void gpu_box_2d1r_breakdown1(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int time, const int input_m, const int input_n);
