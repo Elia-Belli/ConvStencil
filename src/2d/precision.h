@@ -17,9 +17,9 @@
 template <typename T>
 constexpr const char* precision_name(T) noexcept
 {
-    if constexpr (std::is_same_v<T, float>)
+    if constexpr (std::is_same<T, float>::value)
         return "float";
-    else if constexpr (std::is_same_v<T, double>)
+    else if constexpr (std::is_same<T, double>::value)
         return "double";
     else
         return "unknown";
