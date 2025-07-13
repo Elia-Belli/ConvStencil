@@ -31,11 +31,11 @@ const real_t tolerance = 1e-7;
 #define ABS(x, y) (((x) > (y)) ? ((x) - (y)) : ((y) - (x)))
 
 // Write the output to file or not
-#define WRITE_OUTPUT
-#define RUN_GPU
+// #define WRITE_OUTPUT
+// #define RUN_GPU
 
 // Write output to stdout
-#define PRINT_OUTPUT
+// #define PRINT_OUTPUT
 
 /* Global variable */
 int NY;
@@ -310,7 +310,7 @@ int main(int argc, char *argv[])
         halo = 3;
         break;
     case star_2d1r:
-        param = param_box_2d1r;
+        param = param_star_2d1r;
         halo = 3;
         break;
     case star_2d3r:
