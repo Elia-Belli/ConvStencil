@@ -15,11 +15,11 @@
 #endif
 
 template <typename T>
-constexpr const char* precision_name(T) noexcept
+const char* precision_name(T) noexcept
 {
-    if constexpr (std::is_same<T, float>::value)
+    if (std::is_same<T, float>::value)
         return "float";
-    else if constexpr (std::is_same<T, double>::value)
+    else if (std::is_same<T, double>::value)
         return "double";
     else
         return "unknown";
