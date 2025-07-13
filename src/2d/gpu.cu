@@ -3,6 +3,7 @@
 // #include <cuda_runtime.h>
 // #include "../utils.h"
 #include <iostream>
+#include <fstream>
 #include <chrono>
 #include "2d_utils.h"
 #include "precision.h"
@@ -329,6 +330,12 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
 
     printf("GStencil/s = %f\n", ((real_t)input_m * input_n * times * 3) / secs / 1e9);
     
+    std::ofstream csv("logs/logs.csv", std::ios::app);
+    csv << "ConvStencil(2D),star_2d1r," << input_m << "," << times << "," << precision_name(out[0]) << ","
+        << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "," 
+        << ((real_t)input_m * input_n * times * 3) / secs / 1e9 << std::endl;
+
+
     CUDA_CHECK(cudaMemcpy(out, array_d[i % 2], array_size, cudaMemcpyDeviceToHost));
 
     return;
