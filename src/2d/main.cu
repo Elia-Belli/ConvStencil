@@ -35,7 +35,7 @@ const real_t tolerance = 1e-7;
 // #define RUN_GPU
 
 // Write output to stdout
-#define PRINT_OUTPUT
+// #define PRINT_OUTPUT
 
 /* Global variable */
 int NY;
@@ -428,7 +428,7 @@ int main(int argc, char *argv[])
     {
         for (int col = 0; col < cols; col++)
         {
-            if (ABS(naive[t % 2][IDX(row, col, cols)], output[IDX(row, col, cols)]) > 1e-7)
+            if (ABS(naive[t % 2][IDX(row, col, cols)], output[IDX(row, col, cols)]) > tolerance)
             {
                 printf("row = %d, col = %d, naive = %lf, output = %lf\n", row, col, naive[t % 2][IDX(row, col, cols)], output[IDX(row, col, cols)]);
             }
