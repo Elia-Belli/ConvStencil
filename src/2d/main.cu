@@ -341,7 +341,7 @@ int main(int argc, char *argv[])
 
 #if defined(FILL_RANDOM)
     std::mt19937 gen(0);
-    std::uniform_real_distribution<real_t> dis(0.0, 100.0);
+    std::uniform_real_distribution<real_t> dis(0.0, 10.0);
 #pragma unroll
     for (int i = 0; i < rows * cols; i++)
     {   
@@ -380,7 +380,7 @@ int main(int argc, char *argv[])
 
         }
         else
-        {
+        {   
             gpu_box_2d1r(matrix, output,
                      param, times,
                      m, n);
@@ -394,8 +394,8 @@ int main(int argc, char *argv[])
         break;
     }
 
-    // check result correctness
 
+// check result correctness
 #if defined(CHECK_ERROR)
     printf("\nChecking ... \n");
     real_t *naive[2];

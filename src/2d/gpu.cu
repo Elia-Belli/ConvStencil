@@ -1,12 +1,18 @@
+#include "2d_utils.h"
+
+#ifdef __INTELLISENSE__
+#include <cuda.h>
+#include <cuda_runtime.h>
+#endif
+
 #include <mma.h>
-// #include <cuda.h>
-// #include <cuda_runtime.h>
-// #include "../utils.h"
+
 #include <iostream>
 #include <fstream>
 #include <chrono>
-#include "2d_utils.h"
 #include "precision.h"
+// #include "../utils.h"
+
 
 using namespace nvcuda;
 
@@ -19,18 +25,19 @@ using namespace nvcuda;
 #define SM_SIZE_COL (7 * D_BLOCK_SIZE_ROW + PAD)
 #define SM_SIZE_ROW (D_BLOCK_SIZE_COL / 8)
 #define UNIT_LENGTH 7
-#define TENSOR_CORE_M 8
+#define TENSOR_CORE_M 16 // 8
+#define TENSOR_CORE_N 16 // 8
+#define TENSOR_CORE_K 8 // 4
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
 #define WARP_PER_BLOCK 8
 // #define ACCS_PER_WARP (BLOCK_SIZE_COL * BLOCK_SIZE_ROW / 64 / WARP_PER_BLOCK)
-#define MMA_NUM 13
+#define MMA_NUM 52 //13
 #define ceild(n,d)	(((n)-1)/(d) + 1)
 
-__constant__ real_t param_matrix_d[2 * 52 * TENSOR_CORE_M];
+__constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
 
-
-__global__ void kernel2d (const real_t * __restrict__ in, real_t * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
-    __shared__ real_t sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
+__global__ void kernel2d_fp64 (const double * __restrict__ in, double * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
+    __shared__ double sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
     int tid = threadIdx.x;
     int totalThreads = blockDim.x;
@@ -46,15 +53,57 @@ __global__ void kernel2d (const real_t * __restrict__ in, real_t * __restrict__ 
 
     int warp_id = threadIdx.x / 32;
 
-    nvcuda::wmma::fragment<wmma::matrix_b, 8, 8, 4, real_t, wmma::row_major> param_frag[2][MMA_NUM];
+    nvcuda::wmma::fragment<wmma::matrix_b, 8, 8, 4, double, wmma::row_major> param_frag[2][MMA_NUM];
 #pragma unroll
     for (int i = 0; i < MMA_NUM; i++) {
         nvcuda::wmma::load_matrix_sync(param_frag[0][i], param_matrix_d + i * 32, 8);
         nvcuda::wmma::load_matrix_sync(param_frag[1][i], param_matrix_d + 52 * 8 + i * 32, 8);
     }
 
-    wmma::fragment<wmma::accumulator, 8, 8, 4, real_t> acc_frag;
-    wmma::fragment<wmma::matrix_a, 8, 8, 4, real_t, wmma::row_major> in_frag;
+    wmma::fragment<wmma::accumulator, 8, 8, 4, double> acc_frag;
+    wmma::fragment<wmma::matrix_a, 8, 8, 4, double, wmma::row_major> in_frag;
+    for (int col = warp_id * 28; col < warp_id * 28 + 28; col += UNIT_LENGTH) {
+        wmma::fill_fragment(acc_frag, 0.0);
+#pragma unroll
+        for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
+            wmma::load_matrix_sync(in_frag, sharedmem[0] + IDX(0, col + compute_idx * 4, SM_SIZE_COL), SM_SIZE_COL);
+            wmma::mma_sync(acc_frag, in_frag, param_frag[0][compute_idx], acc_frag);
+        }
+#pragma unroll
+        for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
+            wmma::load_matrix_sync(in_frag, sharedmem[1] + IDX(0, col + compute_idx * 4, SM_SIZE_COL), SM_SIZE_COL);
+            wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);
+        }
+        wmma::store_matrix_sync(out + begin + IDX(HALO + col / 7, HALO, ldm), acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
+    }
+}
+
+__global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
+    __shared__ float sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
+    int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
+    int tid = threadIdx.x;
+    int totalThreads = blockDim.x;
+#pragma unroll
+    for (int i = tid; i < D_BLOCK_SIZE_ROW * D_BLOCK_SIZE_COL; i += totalThreads) {
+        int row = i / D_BLOCK_SIZE_COL;
+        int col = i % D_BLOCK_SIZE_COL;
+        sharedmem[0][lookup_table1[i]] = in[begin + IDX(row, col, ldm)];
+        sharedmem[1][lookup_table2[i]] = in[begin + IDX(row, col, ldm)];
+    }
+    __syncthreads();
+
+
+    int warp_id = threadIdx.x / 32;
+
+    wmma::fragment<wmma::matrix_b, 16, 16, 8, wmma::precision::tf32, wmma::row_major> param_frag[2][MMA_NUM];
+#pragma unroll
+    for (int i = 0; i < MMA_NUM; i++) {
+        wmma::load_matrix_sync(param_frag[0][i], param_matrix_d + i * TENSOR_CORE_M * TENSOR_CORE_K, TENSOR_CORE_K);
+        wmma::load_matrix_sync(param_frag[1][i], param_matrix_d + MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K + i * TENSOR_CORE_M * TENSOR_CORE_K, TENSOR_CORE_K);
+    }
+
+    wmma::fragment<wmma::accumulator, 16, 16, 8, float> acc_frag;
+    wmma::fragment<wmma::matrix_a, 16, 16, 8, wmma::precision::tf32, wmma::row_major> in_frag;
     for (int col = warp_id * 28; col < warp_id * 28 + 28; col += UNIT_LENGTH) {
         wmma::fill_fragment(acc_frag, 0.0);
 #pragma unroll
@@ -245,14 +294,15 @@ __global__ void breakdown1_kernel ( real_t * __restrict__ in, real_t * __restric
  * 
 */
 void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int times, const int input_m, const int input_n) {
-    real_t param_matrix_h[2][52 * 8] = {0.0};
+    real_t param_matrix_h[2][MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K] = {0.0};
 
     // Initialize parameter matrix
     for (int col = 0; col < TENSOR_CORE_M; col++) {
         for(int i = 0; i < UNIT_LENGTH; i++) {
             for(int j = 0; j < UNIT_LENGTH; j++) {
                 if (j >= col) {
-                    param_matrix_h[0][(i * UNIT_LENGTH + j) * 8 + col] = params[i * UNIT_LENGTH + j - col];
+                    int idx = (i * UNIT_LENGTH + j) * TENSOR_CORE_K + col;
+                    param_matrix_h[0][idx] = params[i * UNIT_LENGTH + j - col];
                 }
             }
         }
@@ -261,12 +311,13 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
         for(int i = 0; i < UNIT_LENGTH; i++) {
             for(int j = 0; j < UNIT_LENGTH; j++) {
                 if (j < col) {
-                    param_matrix_h[1][(i * UNIT_LENGTH + j) * 8 + col] = params[i * UNIT_LENGTH + j - col + 7];
-                }
+                    int idx = (i * UNIT_LENGTH + j) * TENSOR_CORE_K + col;
+                    param_matrix_h[1][idx] = params[i * UNIT_LENGTH + j - col + 7];                }
             }
         }
     }
-    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, 2 * 8 * 52 * sizeof(real_t)));
+    
+    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, sizeof(param_matrix_h)));
 
     const int rows = input_m + 2 * HALO;
     const int cols = input_n + 2 * HALO + 2;
@@ -318,8 +369,13 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
     for(; i < times; i++) {
-        CUDAKERNELCHECK((kernel2d<<<grid_config, block_config>>>(array_d[i % 2], array_d[(i + 1) % 2], cols, lookup_table1_d, lookup_table2_d)));
-    }
+        #ifdef USE_DOUBLE_PRECISION
+            CUDAKERNELCHECK((kernel2d_fp64<<<grid_config, block_config>>>(array_d[i % 2], array_d[(i + 1) % 2], cols, lookup_table1_d, lookup_table2_d)));
+        #endif
+        #ifdef USE_FLOAT_PRECISION
+            CUDAKERNELCHECK((kernel2d_fp32<<<grid_config, block_config>>>(array_d[i % 2], array_d[(i + 1) % 2], cols, lookup_table1_d, lookup_table2_d)));
+        #endif
+        }
     CUDA_CHECK(cudaDeviceSynchronize());
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
@@ -415,7 +471,7 @@ void gpu_box_2d3r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
     for(; i < times; i++) {
-        CUDAKERNELCHECK((kernel2d<<<grid_config, block_config>>>(array_d[i % 2], array_d[(i + 1) % 2], cols, lookup_table1_d, lookup_table2_d)));
+        CUDAKERNELCHECK((kernel2d_fp64<<<grid_config, block_config>>>(array_d[i % 2], array_d[(i + 1) % 2], cols, lookup_table1_d, lookup_table2_d)));
     }
     CUDA_CHECK(cudaDeviceSynchronize());
 
