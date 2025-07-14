@@ -36,6 +36,7 @@ using namespace nvcuda;
 
 __constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
 
+/*
 __global__ void kernel2d_fp64 (const double * __restrict__ in, double * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
     __shared__ double sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
@@ -77,6 +78,7 @@ __global__ void kernel2d_fp64 (const double * __restrict__ in, double * __restri
         wmma::store_matrix_sync(out + begin + IDX(HALO + col / 7, HALO, ldm), acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
     }
 }
+*/
 
 __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
     __shared__ float sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
