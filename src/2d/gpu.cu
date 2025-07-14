@@ -120,6 +120,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
     }
 }
 
+/*
 __global__ void breakdown4_kernel (const real_t * __restrict__ in, real_t * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
     __shared__ real_t sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
@@ -285,7 +286,7 @@ __global__ void breakdown1_kernel ( real_t * __restrict__ in, real_t * __restric
         }
     }
 }
-
+*/
 
 /**
  * @param in input array pointer
@@ -397,6 +398,7 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     return;
 }
 
+/*
 void gpu_box_2d3r(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int times, const int input_m, const int input_n) {
     real_t param_matrix_h[2][52 * 8] = {0.0};
 
@@ -488,13 +490,6 @@ void gpu_box_2d3r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     return;
 }
 
-
-/**
- * @param in input array pointer
- * @param out output array pointer
- * @param params parameter array pointer (length 49)
- * 
-*/
 void gpu_box_2d1r_breakdown4(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int times, const int input_m, const int input_n) {
     real_t param_matrix_h[2][52 * 8] = {0.0};
 
@@ -586,12 +581,6 @@ void gpu_box_2d1r_breakdown4(const real_t * __restrict__ in, real_t * __restrict
     return;
 }
 
-/**
- * @param in input array pointer
- * @param out output array pointer
- * @param params parameter array pointer (length 49)
- * 
-*/
 void gpu_box_2d1r_breakdown3(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int times, const int input_m, const int input_n) {
     real_t param_matrix_h[2][52 * 8] = {0.0};
 
@@ -863,3 +852,4 @@ void gpu_box_2d1r_breakdown1(const real_t * __restrict__ in, real_t * __restrict
 
     return;
 }
+*/
