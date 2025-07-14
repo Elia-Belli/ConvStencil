@@ -372,11 +372,11 @@ int main(int argc, char *argv[])
     case star_2d1r:
         if (breakdown)
         {
-            gpu_box_2d1r_breakdown1(matrix, output, param, times, m, n);
-            gpu_box_2d1r_breakdown2(matrix, output, param, times, m, n);
-            gpu_box_2d1r_breakdown3(matrix, output, param, times, m, n);
-            gpu_box_2d1r_breakdown4(matrix, output, param, times, m, n);
-            gpu_box_2d1r(matrix, output, param, times, m, n);
+            // gpu_box_2d1r_breakdown1(matrix, output, param, times, m, n);
+            // gpu_box_2d1r_breakdown2(matrix, output, param, times, m, n);
+            // gpu_box_2d1r_breakdown3(matrix, output, param, times, m, n);
+            // gpu_box_2d1r_breakdown4(matrix, output, param, times, m, n);
+            // gpu_box_2d1r(matrix, output, param, times, m, n);
 
         }
         else
@@ -388,9 +388,9 @@ int main(int argc, char *argv[])
         break;
     case star_2d3r:
     case box_2d3r:
-        gpu_box_2d3r(matrix, output,
-                      param, times,
-                      m, n);
+        // gpu_box_2d3r(matrix, output,
+        //               param, times,
+        //               m, n);
         break;
     }
 
