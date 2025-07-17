@@ -246,11 +246,19 @@ int main(int argc, char *argv[])
     real_t param_box_2d1r[49] = {0.0};
     real_t param_star_2d1r[49] = {0.0};
 
+    param_box_2d1r[17] = 1.0;
+    param_box_2d1r[23] = 1.0;
+    param_box_2d1r[24] = -4.0;
+    param_box_2d1r[25] = 1.0;
+    param_box_2d1r[31] = 1.0;
+
+    /*
     for (int i = 0; i < 49; i++)
     {
         param_box_2d1r[i] = 0.021;
     }
 
+    
     param_box_2d1r[16] = (3 * param_1r[0] * param_1r[0] * param_1r[8] + 6 * param_1r[0] * param_1r[1] * param_1r[7] + 6 * param_1r[0] * param_1r[2] * param_1r[6] + 6 * param_1r[0] * param_1r[3] * param_1r[5] + 3 * param_1r[0] * param_1r[4] * param_1r[4] + 3 * param_1r[1] * param_1r[1] * param_1r[6] + 6 * param_1r[1] * param_1r[3] * param_1r[4] + 3 * param_1r[2] * param_1r[3] * param_1r[3]);
     param_box_2d1r[15] = (3 * param_1r[0] * param_1r[0] * param_1r[7] + 6 * param_1r[0] * param_1r[1] * param_1r[6] + 6 * param_1r[0] * param_1r[3] * param_1r[4] + 3 * param_1r[1] * param_1r[3] * param_1r[3]);
     param_box_2d1r[14] = (3 * param_1r[0] * param_1r[0] * param_1r[6] + 3 * param_1r[0] * param_1r[3] * param_1r[3]);
@@ -299,9 +307,8 @@ int main(int argc, char *argv[])
     param_box_2d1r[46] = (3 * param_1r[6] * param_1r[8] * param_1r[8] + 3 * param_1r[7] * param_1r[7] * param_1r[8]);
     param_box_2d1r[47] = 3 * param_1r[7] * param_1r[8] * param_1r[8];
     param_box_2d1r[48] = param_1r[8] * param_1r[8] * param_1r[8];
-
+    */
     
-
     real_t *param;
     int halo;
     switch (compute_shape)

@@ -13,6 +13,7 @@
 #include "precision.h"
 // #include "../utils.h"
 
+#define DEBUG
 
 using namespace nvcuda;
 
