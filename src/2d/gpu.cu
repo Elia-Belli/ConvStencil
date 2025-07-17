@@ -32,7 +32,7 @@ using namespace nvcuda;
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
 #define WARP_PER_BLOCK 8
 // #define ACCS_PER_WARP (BLOCK_SIZE_COL * BLOCK_SIZE_ROW / 64 / WARP_PER_BLOCK)
-#define MMA_NUM 52 //13
+#define MMA_NUM 1 //52
 #define ceild(n,d)	(((n)-1)/(d) + 1)
 
 __constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
@@ -96,12 +96,6 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         sharedmem[1][lookup_table2[i]] = in[begin + IDX(row, col, ldm)];
     }
 
-    #ifdef DEBUG
-        if(tid == 0){
-            printf("tid: %d, begin: %d, ldm: %d, SM_SIZE_COL: %d, SM_SIZE_ROW: %d\n", tid, begin, ldm, SM_SIZE_COL, SM_SIZE_ROW);
-        }
-    #endif
-    
     __syncthreads();
 
 

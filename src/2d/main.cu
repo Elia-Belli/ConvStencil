@@ -252,6 +252,11 @@ int main(int argc, char *argv[])
     param_box_2d1r[25] = 1.0;
     param_box_2d1r[31] = 1.0;
 
+
+    for(int i=0; i < 49; i++)
+    {
+        param_box_2d1r[i] = i;
+    }
     /*
     for (int i = 0; i < 49; i++)
     {
