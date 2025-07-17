@@ -20,8 +20,8 @@ const char *ShapeStr[5] = {
 
 
 // Fill the matrix with random numbers or indices
-#define FILL_RANDOM
-//#define FILL_INDEX
+//#define FILL_RANDOM
+#define FILL_INDEX
 
 // Check the correctness of the result or not
 #define CHECK_ERROR
