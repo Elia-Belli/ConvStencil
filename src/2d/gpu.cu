@@ -81,10 +81,12 @@ __global__ void kernel2d_fp64 (const double * __restrict__ in, double * __restri
 */
 
 __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
+    
     __shared__ float sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
     int tid = threadIdx.x;
     int totalThreads = blockDim.x;
+
 #pragma unroll
     for (int i = tid; i < D_BLOCK_SIZE_ROW * D_BLOCK_SIZE_COL; i += totalThreads) {
         int row = i / D_BLOCK_SIZE_COL;
@@ -92,6 +94,26 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         sharedmem[0][lookup_table1[i]] = in[begin + IDX(row, col, ldm)];
         sharedmem[1][lookup_table2[i]] = in[begin + IDX(row, col, ldm)];
     }
+
+    #ifdef DEBUG
+        if(tid == 0){
+            printf("tid: %d, begin: %d, ldm: %d, SM_SIZE_COL: %d, SM_SIZE_ROW: %d\n", tid, begin, ldm, SM_SIZE_COL, SM_SIZE_ROW);
+            for(int i = 0; i < D_BLOCK_SIZE_ROW; i++) {
+                for(int j = 0; j < D_BLOCK_SIZE_COL; j++) {
+                    printf("%d ", lookup_table1_h[i][j]);
+                }
+                printf("\n");
+            }
+            for(int i = 0; i < D_BLOCK_SIZE_ROW; i++) {
+                for(int j = 0; j < D_BLOCK_SIZE_COL; j++) {
+                    printf("%d ", lookup_table2_h[i][j]);
+                }
+                printf("\n");
+            }
+            
+        }
+    #endif
+    
     __syncthreads();
 
 
