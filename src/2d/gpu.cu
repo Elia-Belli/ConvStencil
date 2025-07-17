@@ -112,23 +112,6 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
     for (int i = 0; i < MMA_NUM; i++) {
         wmma::load_matrix_sync(param_frag[0][i], param_matrix_d + i * TENSOR_CORE_M * TENSOR_CORE_K, TENSOR_CORE_K);
         wmma::load_matrix_sync(param_frag[1][i], param_matrix_d + MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K + i * TENSOR_CORE_M * TENSOR_CORE_K, TENSOR_CORE_K);
-        
-        #ifdef DEBUG
-        std::cout << "param_frag[0] (MMA " << i << ")" << std::endl;
-        for(int j=0; j < TENSOR_CORE_K; j++){
-                for(int k=0; k < TENSOR_CORE_M; k++){
-                    std::cout << param_matrix_d[j * TENSOR_CORE_M + k + i * TENSOR_CORE_M * TENSOR_CORE_K] << " " << std::endl;
-                }
-                std::cout << std::endl;
-            }
-        std::cout << "param_frag[1] (MMA " << i << ")" << std::endl;
-        for(int j=0; j < TENSOR_CORE_K; j++){
-                for(int k=0; k < TENSOR_CORE_M; k++){
-                    std::cout << param_matrix_d[j * TENSOR_CORE_M + k + MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K + i * TENSOR_CORE_M * TENSOR_CORE_K] << " " << std::endl;
-                }
-                std::cout << std::endl;
-            }
-        #endif
     }
 
     wmma::fragment<wmma::accumulator, 16, 16, 8, float> acc_frag;
@@ -367,6 +350,24 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     #endif
 
     CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, sizeof(param_matrix_h)));
+
+    #ifdef DEBUG
+    for (int i = 0; i < MMA_NUM; i++) {
+    std::cout << "param_frag[0] (MMA " << i << ")" << std::endl;
+    for(int j=0; j < TENSOR_CORE_K; j++){
+            for(int k=0; k < TENSOR_CORE_M; k++){
+                std::cout << param_matrix_h[j * TENSOR_CORE_M + k + i * TENSOR_CORE_M * TENSOR_CORE_K] << " " << std::endl;
+            }
+            std::cout << std::endl;
+        }
+    std::cout << "param_frag[1] (MMA " << i << ")" << std::endl;
+    for(int j=0; j < TENSOR_CORE_K; j++){
+            for(int k=0; k < TENSOR_CORE_M; k++){
+                std::cout << param_matrix_h[j * TENSOR_CORE_M + k + MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K + i * TENSOR_CORE_M * TENSOR_CORE_K] << " " << std::endl;
+            }
+            std::cout << std::endl;
+        }
+    #endif
 
     const int rows = input_m + 2 * HALO;
     const int cols = input_n + 2 * HALO + 2;
