@@ -98,19 +98,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
     #ifdef DEBUG
         if(tid == 0){
             printf("tid: %d, begin: %d, ldm: %d, SM_SIZE_COL: %d, SM_SIZE_ROW: %d\n", tid, begin, ldm, SM_SIZE_COL, SM_SIZE_ROW);
-            for(int i = 0; i < D_BLOCK_SIZE_ROW; i++) {
-                for(int j = 0; j < D_BLOCK_SIZE_COL; j++) {
-                    printf("%d ", lookup_table1_h[i][j]);
-                }
-                printf("\n");
-            }
-            for(int i = 0; i < D_BLOCK_SIZE_ROW; i++) {
-                for(int j = 0; j < D_BLOCK_SIZE_COL; j++) {
-                    printf("%d ", lookup_table2_h[i][j]);
-                }
-                printf("\n");
-            }
-            
+
         }
     #endif
     
@@ -342,6 +330,25 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
         }
     }
     
+    #ifdef DEBUG
+    std::cout << "params: " << std::endl;
+    for(int i = 0; i < 7; i++){
+        for(int j = 0; j < 7; j++){
+            std::cout << params[i * 7 + j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    std::cout << "\n\nparam_matrix_h: " << std::endl;
+    for(int i = 0; i < MMA_NUM * TENSOR_CORE_M; i++){
+        for(int j = 0; j < TENSOR_CORE_K; j++){
+            std::cout << param_matrix_h[0][i * TENSOR_CORE_K + j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    #endif
+
     CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, sizeof(param_matrix_h)));
 
     const int rows = input_m + 2 * HALO;
