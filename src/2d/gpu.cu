@@ -356,14 +356,14 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
         std::cout << "param_frag[0] (MMA " << i << ")" << std::endl;
         for(int j=0; j < TENSOR_CORE_K; j++){
             for(int k=0; k < TENSOR_CORE_M; k++){
-                std::cout << param_matrix_h[j * TENSOR_CORE_M + k + i * TENSOR_CORE_M * TENSOR_CORE_K] << " " << std::endl;
+                std::cout << param_matrix_h[0][j * TENSOR_CORE_M + k] << " " << std::endl;
             }
             std::cout << std::endl;
         }
         std::cout << "param_frag[1] (MMA " << i << ")" << std::endl;
         for(int j=0; j < TENSOR_CORE_K; j++){
             for(int k=0; k < TENSOR_CORE_M; k++){
-                std::cout << param_matrix_h[j * TENSOR_CORE_M + k + MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K + i * TENSOR_CORE_M * TENSOR_CORE_K] << " " << std::endl;
+                std::cout << param_matrix_h[1][j * TENSOR_CORE_M + k] << " " << std::endl;
             }
             std::cout << std::endl;
         }
