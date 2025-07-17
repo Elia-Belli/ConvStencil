@@ -32,7 +32,7 @@ using namespace nvcuda;
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
 #define WARP_PER_BLOCK 8
 // #define ACCS_PER_WARP (BLOCK_SIZE_COL * BLOCK_SIZE_ROW / 64 / WARP_PER_BLOCK)
-#define MMA_NUM 1 //52
+#define MMA_NUM 52
 #define ceild(n,d)	(((n)-1)/(d) + 1)
 
 __constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
@@ -319,7 +319,8 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
             for(int j = 0; j < UNIT_LENGTH; j++) {
                 if (j < col) {
                     int idx = (i * UNIT_LENGTH + j) * TENSOR_CORE_K + col;
-                    param_matrix_h[1][idx] = params[i * UNIT_LENGTH + j - col + 7];                }
+                    param_matrix_h[1][idx] = params[i * UNIT_LENGTH + j - col + 7];      
+                }
             }
         }
     }
@@ -346,26 +347,25 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, sizeof(param_matrix_h)));
 
     #ifdef DEBUG
-    for (int i = 0; i < MMA_NUM; i++) {
-        int offset = i* TENSOR_CORE_K * TENSOR_CORE_M;
+    for (int i = 0; i < TENSOR_CORE_K; i++) {
+        int offset = i* TENSOR_CORE_K * TENSOR_CORE_K;
 
         std::cout << "param_frag[0] (MMA " << i << ")" << std::endl;
         for(int j=0; j < TENSOR_CORE_K; j++){
-            for(int k=0; k < TENSOR_CORE_M; k++){
-                std::cout << param_matrix_h[0][offset + j * TENSOR_CORE_M + k] << " ";
-            }
-            std::cout << std::endl;
-        }
-
-        std::cout << "param_frag[1] (MMA " << i << ")" << std::endl;
-
-        for(int j=0; j < TENSOR_CORE_K; j++){
-            for(int k=0; k < TENSOR_CORE_M; k++){
-                std::cout << param_matrix_h[1][offset + j * TENSOR_CORE_M + k] << " ";
+            for(int k=0; k < TENSOR_CORE_K; k++){
+                std::cout << param_matrix_h[0][offset + j * TENSOR_CORE_K + k] << " ";
             }
             std::cout << std::endl;
         }
     }
+    //     std::cout << "param_matrix_h[1]" << std::endl;
+    //     for(int j=0; j < TENSOR_CORE_K; j++){
+    //         for(int k=0; k < TENSOR_CORE_M; k++){
+    //             std::cout << param_matrix_h[1][offset + j * TENSOR_CORE_M + k] << " ";
+    //         }
+    //         std::cout << std::endl;
+    //     }
+    // }
     #endif
 
     const int rows = input_m + 2 * HALO;

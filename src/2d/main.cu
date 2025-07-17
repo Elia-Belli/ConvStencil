@@ -255,7 +255,7 @@ int main(int argc, char *argv[])
 
     for(int i=0; i < 49; i++)
     {
-        param_box_2d1r[i] = i;
+        param_box_2d1r[i] = i+1;
     }
     /*
     for (int i = 0; i < 49; i++)
