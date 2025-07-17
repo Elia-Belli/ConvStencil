@@ -339,13 +339,13 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
         std::cout << std::endl;
     }
 
-    std::cout << "\n\nparam_matrix_h: " << std::endl;
-    for(int i = 0; i < MMA_NUM * TENSOR_CORE_M; i++){
-        for(int j = 0; j < TENSOR_CORE_K; j++){
-            std::cout << param_matrix_h[0][i * TENSOR_CORE_K + j] << " ";
-        }
-        std::cout << std::endl;
-    }
+    // std::cout << "\n\nparam_matrix_h: " << std::endl;
+    // for(int i = 0; i < MMA_NUM * TENSOR_CORE_M; i++){
+    //     for(int j = 0; j < TENSOR_CORE_K; j++){
+    //         std::cout << param_matrix_h[0][i * TENSOR_CORE_K + j] << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
 
     #endif
 
@@ -353,17 +353,21 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
 
     #ifdef DEBUG
     for (int i = 0; i < MMA_NUM; i++) {
+        int offset = i* TENSOR_CORE_K * TENSOR_CORE_M;
+
         std::cout << "param_frag[0] (MMA " << i << ")" << std::endl;
         for(int j=0; j < TENSOR_CORE_K; j++){
             for(int k=0; k < TENSOR_CORE_M; k++){
-                std::cout << param_matrix_h[0][j * TENSOR_CORE_M + k + i* TENSOR_CORE_K * TENSOR_CORE_M] << " ";
+                std::cout << param_matrix_h[0][offset + j * TENSOR_CORE_M + k] << " ";
             }
             std::cout << std::endl;
         }
+
         std::cout << "param_frag[1] (MMA " << i << ")" << std::endl;
+
         for(int j=0; j < TENSOR_CORE_K; j++){
             for(int k=0; k < TENSOR_CORE_M; k++){
-                std::cout << param_matrix_h[1][j * TENSOR_CORE_M + k + i* TENSOR_CORE_K * TENSOR_CORE_M] << " ";
+                std::cout << param_matrix_h[1][offset + j * TENSOR_CORE_M + k] << " ";
             }
             std::cout << std::endl;
         }

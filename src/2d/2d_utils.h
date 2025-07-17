@@ -28,8 +28,6 @@ static const size_t device_alignment = 32;
 
 #define DATA_TYPE real_t
 
-#define TENSOR_CORE_M 8
-
 #pragma once
 #define CUDAKERNELCHECK(expr)                                                               \
     do                                                                                        \
