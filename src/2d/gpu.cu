@@ -347,10 +347,10 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, sizeof(param_matrix_h)));
 
     #ifdef DEBUG
-    for (int i = 0; i < TENSOR_CORE_K; i++) {
-        int offset = i* TENSOR_CORE_K * TENSOR_CORE_K;
 
-        std::cout << "param_frag[0] (MMA " << i << ")" << std::endl;
+    std::cout << "\n[Weight Matrix A] " << std::endl;
+    for (int i = 0; i < 7; i++) {
+        int offset = i* TENSOR_CORE_K * TENSOR_CORE_K;
         for(int j=0; j < TENSOR_CORE_K; j++){
             for(int k=0; k < TENSOR_CORE_K; k++){
                 std::cout << param_matrix_h[0][offset + j * TENSOR_CORE_K + k] << " ";
@@ -358,14 +358,17 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
             std::cout << std::endl;
         }
     }
-    //     std::cout << "param_matrix_h[1]" << std::endl;
-    //     for(int j=0; j < TENSOR_CORE_K; j++){
-    //         for(int k=0; k < TENSOR_CORE_M; k++){
-    //             std::cout << param_matrix_h[1][offset + j * TENSOR_CORE_M + k] << " ";
-    //         }
-    //         std::cout << std::endl;
-    //     }
-    // }
+
+    std::cout << "\n[Weight Matrix B] " << std::endl;
+    for (int i = 0; i < 7; i++) {
+        int offset = i* TENSOR_CORE_K * TENSOR_CORE_K;
+        for(int j=0; j < TENSOR_CORE_K; j++){
+            for(int k=0; k < TENSOR_CORE_M; k++){
+                std::cout << param_matrix_h[1][offset + j * TENSOR_CORE_M + k] << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
     #endif
 
     const int rows = input_m + 2 * HALO;
