@@ -20,11 +20,11 @@ using namespace nvcuda;
 #define BLOCK_SIZE_ROW 32
 #define BLOCK_SIZE_COL 64
 #define HALO 3
-#define D_BLOCK_SIZE_COL (BLOCK_SIZE_COL + HALO * 2)
-#define D_BLOCK_SIZE_ROW (BLOCK_SIZE_ROW + HALO * 2)
+#define D_BLOCK_SIZE_COL (BLOCK_SIZE_COL + HALO * 2)    // 64 + 6 = 70
+#define D_BLOCK_SIZE_ROW (BLOCK_SIZE_ROW + HALO * 2)    // 32 + 6 = 38
 #define PAD 2
-#define SM_SIZE_COL (7 * D_BLOCK_SIZE_ROW + PAD)
-#define SM_SIZE_ROW (D_BLOCK_SIZE_COL / 8)
+#define SM_SIZE_COL (7 * D_BLOCK_SIZE_ROW + PAD)    // 7 * 38 + 2 = 266
+#define SM_SIZE_ROW (D_BLOCK_SIZE_COL / 8)          // 70 / 8     = 8
 #define UNIT_LENGTH 7
 #define TENSOR_CORE_M 16 // 8
 #define TENSOR_CORE_N 16 // 8
@@ -37,49 +37,6 @@ using namespace nvcuda;
 
 __constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
 
-/*
-__global__ void kernel2d_fp64 (const double * __restrict__ in, double * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
-    __shared__ double sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
-    int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
-    int tid = threadIdx.x;
-    int totalThreads = blockDim.x;
-#pragma unroll
-    for (int i = tid; i < D_BLOCK_SIZE_ROW * D_BLOCK_SIZE_COL; i += totalThreads) {
-        int row = i / D_BLOCK_SIZE_COL;
-        int col = i % D_BLOCK_SIZE_COL;
-        sharedmem[0][lookup_table1[i]] = in[begin + IDX(row, col, ldm)];
-        sharedmem[1][lookup_table2[i]] = in[begin + IDX(row, col, ldm)];
-    }
-    __syncthreads();
-
-
-    int warp_id = threadIdx.x / 32;
-
-    nvcuda::wmma::fragment<wmma::matrix_b, 8, 8, 4, double, wmma::row_major> param_frag[2][MMA_NUM];
-#pragma unroll
-    for (int i = 0; i < MMA_NUM; i++) {
-        nvcuda::wmma::load_matrix_sync(param_frag[0][i], param_matrix_d + i * 32, 8);
-        nvcuda::wmma::load_matrix_sync(param_frag[1][i], param_matrix_d + 52 * 8 + i * 32, 8);
-    }
-
-    wmma::fragment<wmma::accumulator, 8, 8, 4, double> acc_frag;
-    wmma::fragment<wmma::matrix_a, 8, 8, 4, double, wmma::row_major> in_frag;
-    for (int col = warp_id * 28; col < warp_id * 28 + 28; col += UNIT_LENGTH) {
-        wmma::fill_fragment(acc_frag, 0.0);
-#pragma unroll
-        for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
-            wmma::load_matrix_sync(in_frag, sharedmem[0] + IDX(0, col + compute_idx * 4, SM_SIZE_COL), SM_SIZE_COL);
-            wmma::mma_sync(acc_frag, in_frag, param_frag[0][compute_idx], acc_frag);
-        }
-#pragma unroll
-        for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
-            wmma::load_matrix_sync(in_frag, sharedmem[1] + IDX(0, col + compute_idx * 4, SM_SIZE_COL), SM_SIZE_COL);
-            wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);
-        }
-        wmma::store_matrix_sync(out + begin + IDX(HALO + col / 7, HALO, ldm), acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
-    }
-}
-*/
 
 __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
     
@@ -105,7 +62,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 #pragma unroll
     for (int i = 0; i < MMA_NUM; i++) {
         wmma::load_matrix_sync(param_frag[0][i], param_matrix_d + i * TENSOR_CORE_M * TENSOR_CORE_K, TENSOR_CORE_K);
-        wmma::load_matrix_sync(param_frag[1][i], param_matrix_d + MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K + i * TENSOR_CORE_M * TENSOR_CORE_K, TENSOR_CORE_K);
+        wmma::load_matrix_sync(param_frag[1][i], param_matrix_d + (MMA_NUM + i) * TENSOR_CORE_M * TENSOR_CORE_K, TENSOR_CORE_K);
     }
 
     wmma::fragment<wmma::accumulator, 16, 16, 8, float> acc_frag;
@@ -114,16 +71,13 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         wmma::fill_fragment(acc_frag, 0.0);
 #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
-            wmma::load_matrix_sync(in_frag, sharedmem[0] + IDX(0, col + compute_idx * 4, SM_SIZE_COL), SM_SIZE_COL);
+            wmma::load_matrix_sync(in_frag, sharedmem[0] + (compute_idx * TENSOR_CORE_K + col), SM_SIZE_COL);
             wmma::mma_sync(acc_frag, in_frag, param_frag[0][compute_idx], acc_frag);
         }
 #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
-            int access_index = IDX(0, col + compute_idx * 4, SM_SIZE_COL);
-            if (access_index < SM_SIZE_ROW * SM_SIZE_COL) {
-                wmma::load_matrix_sync(in_frag, sharedmem[1] + IDX(0, col + compute_idx * 4, SM_SIZE_COL), SM_SIZE_COL);
-                wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);
-            }
+            wmma::load_matrix_sync(in_frag, sharedmem[1] + (compute_idx * TENSOR_CORE_K + col), SM_SIZE_COL); // illegal memory access
+            wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);
         }
         wmma::store_matrix_sync(out + begin + IDX(HALO + col / 7, HALO, ldm), acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
     }
@@ -213,7 +167,6 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     const int BLOCK_M = (input_m + BLOCK_SIZE_ROW - 1) / BLOCK_SIZE_ROW; 
     const int BLOCK_N = (input_n + BLOCK_SIZE_COL - 1) / BLOCK_SIZE_COL; 
     dim3 grid_config(BLOCK_M, BLOCK_N);
-    // dim3 grid_config(1, 1);
     dim3 block_config(32 * WARP_PER_BLOCK);
 
     // Lookup table
@@ -276,3 +229,48 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
 
     return;
 }
+
+
+/*
+__global__ void kernel2d_fp64 (const double * __restrict__ in, double * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
+    __shared__ double sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
+    int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
+    int tid = threadIdx.x;
+    int totalThreads = blockDim.x;
+#pragma unroll
+    for (int i = tid; i < D_BLOCK_SIZE_ROW * D_BLOCK_SIZE_COL; i += totalThreads) {
+        int row = i / D_BLOCK_SIZE_COL;
+        int col = i % D_BLOCK_SIZE_COL;
+        sharedmem[0][lookup_table1[i]] = in[begin + IDX(row, col, ldm)];
+        sharedmem[1][lookup_table2[i]] = in[begin + IDX(row, col, ldm)];
+    }
+    __syncthreads();
+
+
+    int warp_id = threadIdx.x / 32;
+
+    nvcuda::wmma::fragment<wmma::matrix_b, 8, 8, 4, double, wmma::row_major> param_frag[2][MMA_NUM];
+#pragma unroll
+    for (int i = 0; i < MMA_NUM; i++) {
+        nvcuda::wmma::load_matrix_sync(param_frag[0][i], param_matrix_d + i * 32, 8);
+        nvcuda::wmma::load_matrix_sync(param_frag[1][i], param_matrix_d + 52 * 8 + i * 32, 8);
+    }
+
+    wmma::fragment<wmma::accumulator, 8, 8, 4, double> acc_frag;
+    wmma::fragment<wmma::matrix_a, 8, 8, 4, double, wmma::row_major> in_frag;
+    for (int col = warp_id * 28; col < warp_id * 28 + 28; col += UNIT_LENGTH) {
+        wmma::fill_fragment(acc_frag, 0.0);
+#pragma unroll
+        for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
+            wmma::load_matrix_sync(in_frag, sharedmem[0] + IDX(0, col + compute_idx * 4, SM_SIZE_COL), SM_SIZE_COL);
+            wmma::mma_sync(acc_frag, in_frag, param_frag[0][compute_idx], acc_frag);
+        }
+#pragma unroll
+        for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
+            wmma::load_matrix_sync(in_frag, sharedmem[1] + IDX(0, col + compute_idx * 4, SM_SIZE_COL), SM_SIZE_COL);
+            wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);
+        }
+        wmma::store_matrix_sync(out + begin + IDX(HALO + col / 7, HALO, ldm), acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
+    }
+}
+*/
