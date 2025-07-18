@@ -83,7 +83,7 @@ __global__ void kernel2d_fp64 (const double * __restrict__ in, double * __restri
 
 __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
     
-    __shared__ float sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
+    __shared__ __align__(32) float sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
     int tid = threadIdx.x;
     int totalThreads = blockDim.x;
@@ -363,12 +363,13 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     for (int i = 0; i < 7; i++) {
         int offset = i* TENSOR_CORE_K * TENSOR_CORE_K;
         for(int j=0; j < TENSOR_CORE_K; j++){
-            for(int k=0; k < TENSOR_CORE_M; k++){
+            for(int k=0; k < TENSOR_CORE_K; k++){
                 std::cout << param_matrix_h[1][offset + j * TENSOR_CORE_M + k] << " ";
             }
             std::cout << std::endl;
         }
     }
+    std::cout << std::endl;
     #endif
 
     const int rows = input_m + 2 * HALO;
