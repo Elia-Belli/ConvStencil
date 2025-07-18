@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    real_t param_1r[9] = {0.0, 1.0, 0.0, 1.0, -4.0, 1.0, 0.0, 1.0, 0.0};
+    real_t param_1r[9];
     bool breakdown = false;
     if (argc == 6 && std::string(argv[5]) == "--custom")
     {
@@ -353,11 +353,11 @@ int main(int argc, char *argv[])
 
 #if defined(FILL_RANDOM)
     std::mt19937 gen(0);
-    std::uniform_real_distribution<real_t> dis(0.0, 10.0);
+    std::uniform_real_distribution<real_t> dist(0.0, 10.0);
 #pragma unroll
     for (int i = 0; i < rows * cols; i++)
     {   
-        matrix[i] = (real_t) dis(gen);
+        matrix[i] = (real_t) dist(gen);
     }
 #elif defined(FILL_INDEX)
     for (int i = 0; i < rows; i++)
