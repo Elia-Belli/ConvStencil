@@ -112,9 +112,9 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     for (int col = 0; col < TENSOR_CORE_M; col++) {
         for(int i = 0; i < UNIT_LENGTH; i++) {
             for(int j = 0; j < UNIT_LENGTH; j++) {
-                if (j < col) {
+                if (j < col - 8) {
                     int idx = (i * UNIT_LENGTH + j) * TENSOR_CORE_M + col;
-                    param_matrix_h[1][idx] = params[i * UNIT_LENGTH + j - col + 7];      
+                    param_matrix_h[1][idx] = params[i * UNIT_LENGTH + j - col + 15];
                 }
             }
         }
