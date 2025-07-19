@@ -23,7 +23,7 @@ using namespace nvcuda;
 #define D_BLOCK_SIZE_COL (BLOCK_SIZE_COL + HALO * 2)    // 128 + 6 = 134
 #define D_BLOCK_SIZE_ROW (BLOCK_SIZE_ROW + HALO * 2)    // 32 + 6  = 38
 #define PAD 2
-#define SM_SIZE_COL (7 * D_BLOCK_SIZE_ROW + PAD)    // 7 * 38 + 2  = 266
+#define SM_SIZE_COL (7 * D_BLOCK_SIZE_ROW + PAD)    // 7 * 38 + 2  = 268
 #define SM_SIZE_ROW (D_BLOCK_SIZE_COL / 8)          // 134 / 8     = 16
 #define UNIT_LENGTH 7
 #define TENSOR_CORE_M 16 // 8
@@ -197,9 +197,8 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
 
     #ifdef DEBUG
 
-    std::cout << "\nSharedmem[0]" << std::endl;
     float debug_sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL] = {0.0};
-
+    // fill debug_sharedmem
     for (int i = 0; i < D_BLOCK_SIZE_ROW; i++)
     {
         for(int j = 0; j < D_BLOCK_SIZE_COL; j++) 
@@ -209,26 +208,25 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
         }
     }
 
+    std::cout << "\nStencil2Row Matrix A Tile" << std::endl;
     for (int i = 0; i < SM_SIZE_ROW; i++)
     {
         for(int j = 0; j < SM_SIZE_COL; j++) 
         {
             std::cout << debug_sharedmem[0][i * SM_SIZE_COL + j] << " ";
-            //sharedmem[0][lookup_table1[i]] = in[begin + IDX(row, col, ldm)];
         }
         std::cout << std::endl;
     }
 
-    for (int i = 0; i < D_BLOCK_SIZE_ROW; i++)
+    std::cout << "\nStencil2Row Matrix B Tile" << std::endl;
+    for (int i = 0; i < SM_SIZE_ROW; i++)
     {
-        for(int j = 0; j < D_BLOCK_SIZE_COL; j++) 
+        for(int j = 0; j < SM_SIZE_COL; j++) 
         {
-            std::cout << in[IDX(i, j, cols)] << " ";
-            //sharedmem[1][lookup_table2[i]] = in[begin + IDX(row, col, ldm)];
+            std::cout << debug_sharedmem[1][i * SM_SIZE_COL + j] << " ";
         }
         std::cout << std::endl;
     }
-
     #endif
 
     int * lookup_table1_d;
