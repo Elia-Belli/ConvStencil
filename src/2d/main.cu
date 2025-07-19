@@ -22,6 +22,7 @@ const char *ShapeStr[5] = {
 // Fill the matrix with random numbers or indices
 //#define FILL_RANDOM
 //#define FILL_INDEX
+#define FILL_5_DIAGONAL
 
 // Check the correctness of the result or not
 #define CHECK_ERROR
@@ -352,9 +353,9 @@ int main(int argc, char *argv[])
 
     // fill input matrix
 
+std::mt19937 gen(0);
+std::uniform_real_distribution<real_t> dist(0.0, 10.0);
 #if defined(FILL_RANDOM)
-    std::mt19937 gen(0);
-    std::uniform_real_distribution<real_t> dist(0.0, 10.0);
 #pragma unroll
     for (int i = 0; i < rows * cols; i++)
     {   
@@ -367,6 +368,30 @@ int main(int argc, char *argv[])
         {
             matrix[i * cols + j] = (real_t)(i * (cols - 2) + j);
         }
+    }
+#elif defined(FILL_5_DIAGONAL)
+    for (int i = 0; i < matrix_size; ++i) {
+        int row = i / cols;
+        int col = i % cols;
+
+        // Main diagonal
+        matrix[i * matrix_size + i] = dist(gen);
+
+        // Left neighbor (i - 1), only if not wrapping to previous row
+        if (col > 0)
+            matrix[i * matrix_size + (i - 1)] = dist(gen);
+
+        // Right neighbor (i + 1), only if not wrapping to next row
+        if (col < cols - 1)
+            matrix[i * matrix_size + (i + 1)] = dist(gen);
+
+        // Top neighbor (i - N)
+        if (i >= cols)
+            matrix[i * matrix_size + (i - cols)] = dist(gen);
+
+        // Bottom neighbor (i + N)
+        if (i + cols < matrix_size)
+            matrix[i * matrix_size + (i + cols)] = dist(gen);
     }
 #else
     for (int i = 0; i < rows; i++)
