@@ -195,6 +195,19 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
         }
     }
 
+    #ifdef DEBUG
+
+    for (int i = 0; i < D_BLOCK_SIZE_ROW; i++)
+    {
+        for(int j = 0; j < D_BLOCK_SIZE_COL; j++) 
+        {
+            std::cout << in[IDX(i, j, cols)] << " ";
+            //sharedmem[1][lookup_table2[i]] = in[begin + IDX(row, col, ldm)];
+        }
+        std::cout << std::endl;
+    }
+
+    #endif
 
     int * lookup_table1_d;
     int * lookup_table2_d;
