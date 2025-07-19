@@ -102,7 +102,7 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
         for(int i = 0; i < UNIT_LENGTH; i++) {
             for(int j = 0; j < UNIT_LENGTH; j++) {
                 if (j >= col) {
-                    int idx = (i * UNIT_LENGTH + j) * TENSOR_CORE_K + col;
+                    int idx = (i * UNIT_LENGTH + j) * TENSOR_CORE_M + col;
                     param_matrix_h[0][idx] = params[i * UNIT_LENGTH + j - col];
                 }
             }
@@ -113,7 +113,7 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
         for(int i = 0; i < UNIT_LENGTH; i++) {
             for(int j = 0; j < UNIT_LENGTH; j++) {
                 if (j < col) {
-                    int idx = (i * UNIT_LENGTH + j) * TENSOR_CORE_K + col;
+                    int idx = (i * UNIT_LENGTH + j) * TENSOR_CORE_M + col;
                     param_matrix_h[1][idx] = params[i * UNIT_LENGTH + j - col + 7];      
                 }
             }
@@ -134,10 +134,10 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
 
     std::cout << "\n[Weight Matrix A]" << std::endl;
     for (int i = 0; i < MMA_NUM; i++) {
-        int offset = i* TENSOR_CORE_M * TENSOR_CORE_K;
+        int mma_offset = i* TENSOR_CORE_M * TENSOR_CORE_K;
         for(int j=0; j < TENSOR_CORE_K; j++){
             for(int k=0; k < TENSOR_CORE_M; k++){
-                std::cout << param_matrix_h[0][offset + j * TENSOR_CORE_K + k] << " ";
+                std::cout << param_matrix_h[0][mma_offset + j * TENSOR_CORE_M + k] << " ";
             }
             std::cout << std::endl;
         }
@@ -145,10 +145,10 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
 
     std::cout << "\n[Weight Matrix B]" << std::endl;
     for (int i = 0; i < MMA_NUM; i++) {
-        int offset = i* TENSOR_CORE_K * TENSOR_CORE_K;
-        for(int j=0; j < TENSOR_CORE_K; j++){
-            for(int k=0; k < TENSOR_CORE_M; k++){
-                std::cout << param_matrix_h[1][offset + j * TENSOR_CORE_K + k] << " ";
+        int mma_offset = i * TENSOR_CORE_M * TENSOR_CORE_K;
+        for(int j = 0; j < TENSOR_CORE_K; j++){
+            for(int k = 0; k < TENSOR_CORE_M; k++){
+                std::cout << param_matrix_h[1][mma_offset + j * TENSOR_CORE_M + k] << " ";
             }
             std::cout << std::endl;
         }
