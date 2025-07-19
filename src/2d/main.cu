@@ -421,27 +421,18 @@ int main(int argc, char *argv[])
         naive[1][i] = 0;
     }
 
-    int t = 0;
-    if (compute_shape == box_2d1r || compute_shape == star_2d1r)
+    int t;
+    for (t = 0; t < times; t++)
     {
-        for (; t < times; t++)
-        {
-            naive_box2d1r(naive[t % 2], naive[(t + 1) % 2], param, rows, cols);
-        }
+        naive_box2d1r(naive[t % 2], naive[(t + 1) % 2], param, rows, cols);
     }
-    else if (compute_shape == box_2d3r)
-    {
-        for (; t < times; t++)
-        {
-            naive_box2d1r(naive[t % 2], naive[(t + 1) % 2], param, rows, cols);
-        }
-    }
+    
     printf("Comparing naive and output\n");
     for (int row = 0; row < rows; row++)
-    {
+{
         for (int col = 0; col < cols; col++)
         {
-            if (ABS(naive[t % 2][IDX(row, col, cols)], output[IDX(row, col, cols)]) > 1e-7)
+            if (ABS(naive[t % 2][IDX(row, col, cols)], output[IDX(row, col, cols)]) > tolerance)
             {
                 printf("row = %d, col = %d, naive = %lf, output = %lf\n", row, col, naive[t % 2][IDX(row, col, cols)], output[IDX(row, col, cols)]);
             }
@@ -462,6 +453,7 @@ int main(int argc, char *argv[])
 #ifdef PRINT_OUTPUT
     printf("Output GPU\n");
     print_matrix(output, rows, cols);
+    std::cout << std::endl;
     printf("Output CPU\n");
     print_matrix(naive[t % 2], rows, cols);
 #endif

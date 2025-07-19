@@ -65,8 +65,8 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
     wmma::fragment<wmma::matrix_b, 16, 16, 8, wmma::precision::tf32, wmma::row_major> param_frag[2][MMA_NUM];
 #pragma unroll
     for (int i = 0; i < MMA_NUM; i++) {
-        wmma::load_matrix_sync(param_frag[0][i], param_matrix_d + i * TENSOR_CORE_M * TENSOR_CORE_K, TENSOR_CORE_K);
-        wmma::load_matrix_sync(param_frag[1][i], param_matrix_d + (MMA_NUM + i) * TENSOR_CORE_M * TENSOR_CORE_K, TENSOR_CORE_K);
+        wmma::load_matrix_sync(param_frag[0][i], param_matrix_d + i * TENSOR_CORE_M * TENSOR_CORE_K, TENSOR_CORE_M);
+        wmma::load_matrix_sync(param_frag[1][i], param_matrix_d + (MMA_NUM + i) * TENSOR_CORE_M * TENSOR_CORE_K, TENSOR_CORE_M);
     }
 
     wmma::fragment<wmma::accumulator, 16, 16, 8, float> acc_frag;
@@ -81,7 +81,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
             wmma::load_matrix_sync(in_frag, sharedmem[1] + (compute_idx * TENSOR_CORE_K + col), SM_SIZE_COL);
-            wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);    // fix weight matrix B
+            wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);
         }
         wmma::store_matrix_sync(out + begin + IDX(HALO + col / 7, HALO, ldm), acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
     }
@@ -223,14 +223,14 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     std::cout << "ConvStencil(2D): " << std::endl;
     std::cout << "Time = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     
-    real_t secs = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1e6;
+    double secs = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1e6;
 
-    printf("GStencil/s = %f\n", ((real_t)input_m * input_n * times * 3) / secs / 1e9);
+    printf("GStencil/s = %f\n", ((double)input_m * input_n * times * 3) / secs / 1e9);
     
     std::ofstream csv("logs/logs.csv", std::ios::app);
     csv << "ConvStencil(2D),star_2d1r," << input_m << "," << times << "," << precision_name(out[0]) << ","
         << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "," 
-        << ((real_t)input_m * input_n * times * 3) / secs / 1e9 << std::endl;
+        << ((double)input_m * input_n * times * 3) / secs / 1e9 << std::endl;
 
 
     CUDA_CHECK(cudaMemcpy(out, array_d[i % 2], array_size, cudaMemcpyDeviceToHost));
