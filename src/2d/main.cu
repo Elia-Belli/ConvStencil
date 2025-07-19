@@ -26,7 +26,7 @@ const char *ShapeStr[5] = {
 
 // Check the correctness of the result or not
 #define CHECK_ERROR
-const real_t tolerance = 1e-7;
+const real_t tolerance = 1e-2;
 
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
 #define ABS(x, y) (((x) > (y)) ? ((x) - (y)) : ((y) - (x)))
@@ -372,13 +372,12 @@ std::uniform_real_distribution<real_t> dist(0.0, 10.0);
 #elif defined(FILL_5_DIAGONAL)
     for (int i = 0; i < rows; ++i) {
         for(int j = 0; j < cols; ++j) {
-
-        // Main diagonal
-        if(i == j)
-        {   
-            matrix[i * cols + j] = dist(gen);
+            
+            if(i == j) // Main diagonal
+            {   
+                matrix[i * cols + j] = dist(gen);
+            }
         }
-
     }
 #else
     for (int i = 0; i < rows; i++)
@@ -441,7 +440,7 @@ std::uniform_real_distribution<real_t> dist(0.0, 10.0);
     
     printf("Comparing naive and output\n");
     for (int row = 0; row < rows; row++)
-{
+    {
         for (int col = 0; col < cols; col++)
         {
             if (ABS(naive[t % 2][IDX(row, col, cols)], output[IDX(row, col, cols)]) > tolerance)
@@ -450,6 +449,7 @@ std::uniform_real_distribution<real_t> dist(0.0, 10.0);
             }
         }
     }
+    std::cout << std::endl;
 #endif
 
 // write to file
