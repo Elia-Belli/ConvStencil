@@ -370,28 +370,15 @@ std::uniform_real_distribution<real_t> dist(0.0, 10.0);
         }
     }
 #elif defined(FILL_5_DIAGONAL)
-    for (int i = 0; i < matrix_size; ++i) {
-        int row = i / cols;
-        int col = i % cols;
+    for (int i = 0; i < rows; ++i) {
+        for(int j = 0; j < cols; ++j) {
 
         // Main diagonal
-        matrix[i * matrix_size + i] = dist(gen);
+        if(i == j)
+        {   
+            matrix[i * cols + j] = dist(gen);
+        }
 
-        // Left neighbor (i - 1), only if not wrapping to previous row
-        if (col > 0)
-            matrix[i * matrix_size + (i - 1)] = dist(gen);
-
-        // Right neighbor (i + 1), only if not wrapping to next row
-        if (col < cols - 1)
-            matrix[i * matrix_size + (i + 1)] = dist(gen);
-
-        // Top neighbor (i - N)
-        if (i >= cols)
-            matrix[i * matrix_size + (i - cols)] = dist(gen);
-
-        // Bottom neighbor (i + N)
-        if (i + cols < matrix_size)
-            matrix[i * matrix_size + (i + cols)] = dist(gen);
     }
 #else
     for (int i = 0; i < rows; i++)
