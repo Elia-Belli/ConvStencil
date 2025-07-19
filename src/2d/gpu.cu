@@ -197,6 +197,28 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
 
     #ifdef DEBUG
 
+    std::cout << "\nSharedmem[0]" << std::endl;
+    float debug_sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL] = {0.0};
+
+    for (int i = 0; i < D_BLOCK_SIZE_ROW; i++)
+    {
+        for(int j = 0; j < D_BLOCK_SIZE_COL; j++) 
+        {
+            debug_sharedmem[0][lookup_table1_h[i][j]] = in[IDX(i, j, cols)];
+            debug_sharedmem[1][lookup_table2_h[i][j]] = in[IDX(i, j, cols)];
+        }
+    }
+
+    for (int i = 0; i < SM_SIZE_ROW; i++)
+    {
+        for(int j = 0; j < SM_SIZE_COL; j++) 
+        {
+            std::cout << debug_sharedmem[0][i * SM_SIZE_COL + j] << " ";
+            //sharedmem[0][lookup_table1[i]] = in[begin + IDX(row, col, ldm)];
+        }
+        std::cout << std::endl;
+    }
+
     for (int i = 0; i < D_BLOCK_SIZE_ROW; i++)
     {
         for(int j = 0; j < D_BLOCK_SIZE_COL; j++) 
