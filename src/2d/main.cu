@@ -348,8 +348,8 @@ int main(int argc, char *argv[])
 
     // allocate space
 
-    real_t *matrix = (real_t *)malloc(matrix_size);
-    real_t *output = (real_t *)malloc(matrix_size);
+    real_t *matrix = (real_t *)calloc(matrix_size, sizeof(real_t));
+    real_t *output = (real_t *)calloc(matrix_size, sizeof(real_t));
 
     // fill input matrix
 

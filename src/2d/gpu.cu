@@ -92,6 +92,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 }
 
 
+
 /**
  * @param in input array pointer
  * @param out output array pointer
@@ -203,13 +204,11 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
 
     float debug_sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL] = {0.0};
     // fill debug_sharedmem
-    for (int i = 0; i < D_BLOCK_SIZE_ROW; i++)
-    {
-        for(int j = 0; j < D_BLOCK_SIZE_COL; j++) 
-        {
-            debug_sharedmem[0][lookup_table1_h[i][j]] = in[IDX(i, j, cols)];
-            debug_sharedmem[1][lookup_table2_h[i][j]] = in[IDX(i, j, cols)];
-        }
+    for (int i = 0; i < D_BLOCK_SIZE_ROW * D_BLOCK_SIZE_COL; i += 256) {
+        int row = i / D_BLOCK_SIZE_COL;
+        int col = i % D_BLOCK_SIZE_COL;
+        debug_sharedmem[0][lookup_table1_h[row][col]] = in[1 + IDX(row, col, cols)];
+        debug_sharedmem[1][lookup_table2_h[row][col]] = in[1 + IDX(row, col, cols)];
     }
 
     std::cout << "\nStencil2Row Matrix A Tile" << std::endl;
