@@ -31,6 +31,7 @@ using namespace nvcuda;
 #define TENSOR_CORE_K 8 // 4
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
 #define WARP_PER_BLOCK 8
+#define WARP_COLS 32
 // #define ACCS_PER_WARP (BLOCK_SIZE_COL * BLOCK_SIZE_ROW / 64 / WARP_PER_BLOCK)
 #define MMA_NUM 7 // 13
 #define ceild(n,d)	(((n)-1)/(d) + 1)
@@ -52,7 +53,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         When loading into shared memory, we use lookup tables to apply the s2r layout.
         Data in shared memory has the stencil2row layout.
     */
-#pragma unroll
+    #pragma unroll
     for (int i = tid; i < D_BLOCK_SIZE_ROW * D_BLOCK_SIZE_COL; i += totalThreads) {
         int row = i / D_BLOCK_SIZE_COL;
         int col = i % D_BLOCK_SIZE_COL;
@@ -63,7 +64,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 
 
     wmma::fragment<wmma::matrix_b, 16, 16, 8, wmma::precision::tf32, wmma::row_major> param_frag[2][MMA_NUM];
-#pragma unroll
+    #pragma unroll
     for (int i = 0; i < MMA_NUM; i++) {
         wmma::load_matrix_sync(param_frag[0][i], param_matrix_d + i * TENSOR_CORE_M * TENSOR_CORE_K, TENSOR_CORE_M);
         wmma::load_matrix_sync(param_frag[1][i], param_matrix_d + (MMA_NUM + i) * TENSOR_CORE_M * TENSOR_CORE_K, TENSOR_CORE_M);
@@ -71,14 +72,16 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 
     wmma::fragment<wmma::accumulator, 16, 16, 8, float> acc_frag;
     wmma::fragment<wmma::matrix_a, 16, 16, 8, wmma::precision::tf32, wmma::row_major> in_frag;
-    for (int col = warp_id * 28; col < warp_id * 28 + 28; col += UNIT_LENGTH) {
+    for (int col = warp_id * WARP_COLS; col < (warp_id + 1) * WARP_COLS; col += UNIT_LENGTH) {
         wmma::fill_fragment(acc_frag, 0.0);
-#pragma unroll
+        
+        #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
             wmma::load_matrix_sync(in_frag, sharedmem[0] + (compute_idx * TENSOR_CORE_K + col), SM_SIZE_COL);
             wmma::mma_sync(acc_frag, in_frag, param_frag[0][compute_idx], acc_frag);
         }
-#pragma unroll
+
+        #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
             wmma::load_matrix_sync(in_frag, sharedmem[1] + (compute_idx * TENSOR_CORE_K + col), SM_SIZE_COL);
             wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);
@@ -104,7 +107,7 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
                 if (j >= col) {
                     int idx = (i * UNIT_LENGTH + j) * TENSOR_CORE_M + col;
                     param_matrix_h[0][idx] = params[i * UNIT_LENGTH + j - col];
-                    param_matrix_h[0][idx+8] = params[i * UNIT_LENGTH + j - col];
+                    param_matrix_h[0][idx+7] = params[i * UNIT_LENGTH + j - col];
                 }
             }
         }
@@ -116,7 +119,7 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
                 if (j < col - 8) {
                     int idx = (i * UNIT_LENGTH + j) * TENSOR_CORE_M + col;
                     param_matrix_h[1][idx] = params[i * UNIT_LENGTH + j - col + 15];
-                    param_matrix_h[1][idx-8] = params[i * UNIT_LENGTH + j - col + 15];
+                    param_matrix_h[1][idx-7] = params[i * UNIT_LENGTH + j - col + 15];
                 }
             }
         }
