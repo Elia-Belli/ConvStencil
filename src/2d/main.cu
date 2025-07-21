@@ -21,8 +21,8 @@ const char *ShapeStr[5] = {
 
 // Fill the matrix with random numbers or indices
 //#define FILL_RANDOM
-//#define FILL_INDEX
-#define FILL_5_DIAGONAL
+#define FILL_INDEX
+//#define FILL_5_DIAGONAL
 
 // Check the correctness of the result or not
 #define CHECK_ERROR
@@ -249,7 +249,7 @@ int main(int argc, char *argv[])
 
     param_box_2d1r[17] = 1.0;
     param_box_2d1r[23] = 1.0;
-    param_box_2d1r[24] = -4.0;
+    param_box_2d1r[24] = -1.0;
     param_box_2d1r[25] = 1.0;
     param_box_2d1r[31] = 1.0;
 
