@@ -43,6 +43,8 @@ __constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
 __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
     
     __shared__ __align__(32) float sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
+    __shared__ float in_pad_frag[TENSOR_CORE_M * TENSOR_CORE_K];
+
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
     int tid = threadIdx.x;
     int totalThreads = blockDim.x;
@@ -61,6 +63,11 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         sharedmem[0][lookup_table1[i]] = in[begin + IDX(row, col, ldm)];
         sharedmem[1][lookup_table2[i]] = in[begin + IDX(row, col, ldm)];
     }
+    if (tid == 0){
+        for(int i = 0; i < TENSOR_CORE_M * TENSOR_CORE_K; i++) {
+            in_pad_frag[i] = 0.0f;
+        }
+    }
     __syncthreads();
 
 
@@ -73,8 +80,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 
     wmma::fragment<wmma::accumulator, 16, 16, 8, float> acc_frag;
     wmma::fragment<wmma::matrix_a, 16, 16, 8, wmma::precision::tf32, wmma::row_major> in_frag;
-    __shared__ float in_pad_frag[TENSOR_CORE_M * TENSOR_CORE_K] = {0.0};
-    __shared__ float out_pad_frag[TENSOR_CORE_M * TENSOR_CORE_M] = {0.0};
+    //__shared__ float out_pad_frag[TENSOR_CORE_M * TENSOR_CORE_M];
 
     for (int col = warp_id * WARP_COLS; col < (warp_id + 1) * WARP_COLS; col += UNIT_LENGTH) {
         wmma::fill_fragment(acc_frag, 0.0);
@@ -120,7 +126,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         //     }
         // }
 
-        wmma::store_matrix_sync(out + begin + IDX(HALO + col / 7, HALO, ldm), acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
+        wmma::store_matrix_sync(out + begin + IDX(HALO + col / 7, HALO, ldm), acc_frag, 8, wmma::mem_row_major);
     }
 }
 
