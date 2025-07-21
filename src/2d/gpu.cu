@@ -105,12 +105,13 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         }
 
         wmma::store_matrix_sync(out_pad_frag, acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
+        
+        int out_base_offset = begin + IDX(HALO + col / 7, HALO, ldm);
         for(int i = 0; i < 8; i++) {
             for(int j = 0; j < 8; j++) {
-                out[begin + IDX(HALO + col / 7, HALO, ldm) + IDX(i, j, TENSOR_CORE_M)] = out_pad_frag[IDX(i, j, TENSOR_CORE_M)];
+                out[out_base_offset + IDX(i, j, 8)] = out_pad_frag[IDX(i, j, TENSOR_CORE_M)];
             }
         }
-        //wmma::store_matrix_sync(out + begin + IDX(HALO + col / 7, HALO, ldm), acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
     }
 }
 
@@ -125,7 +126,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int times, const int input_m, const int input_n) {
     
     real_t param_matrix_h[2][MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K] = {0.0};
-    int pad_offset = 8 * TENSOR_CORE_M;
+    int pad_offset = 4 * TENSOR_CORE_M;
 
     // Build Weight Matrix A
     for (int col = 0; col < TENSOR_CORE_M; col++) {
