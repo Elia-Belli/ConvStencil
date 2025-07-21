@@ -34,7 +34,7 @@ using namespace nvcuda;
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
 #define WARP_PER_BLOCK 8
 #define WARP_COLS 28
-#define MMA_NUM ceild(UNIT_LENGTH * UNIT_LENGTH, TENSOR_CORE_K)
+#define MMA_NUM 13
 // #define ACCS_PER_WARP (BLOCK_SIZE_COL * BLOCK_SIZE_ROW / 64 / WARP_PER_BLOCK)
 
 __constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
@@ -73,18 +73,33 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 
     wmma::fragment<wmma::accumulator, 16, 16, 8, float> acc_frag;
     wmma::fragment<wmma::matrix_a, 16, 16, 8, wmma::precision::tf32, wmma::row_major> in_frag;
+    float pad_frag[TENSOR_CORE_M * TENSOR_CORE_K] = {0.0};
+
     for (int col = warp_id * WARP_COLS; col < (warp_id + 1) * WARP_COLS; col += UNIT_LENGTH) {
         wmma::fill_fragment(acc_frag, 0.0);
         
         #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
-            wmma::load_matrix_sync(in_frag, sharedmem[0] + (compute_idx * TENSOR_CORE_K + col), SM_SIZE_COL);
+
+            for(int i = 0; i < 8; i++) {
+                for(int j = 0; j < 4; j++) {
+                    pad_frag[IDX(i, j, TENSOR_CORE_K)] = sharedmem[0][IDX(i, j + compute_idx * TENSOR_CORE_K + col, ldm)];
+                }
+            }
+
+            wmma::load_matrix_sync(in_frag, pad_frag, TENSOR_CORE_K);
             wmma::mma_sync(acc_frag, in_frag, param_frag[0][compute_idx], acc_frag);
         }
 
         #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
-            wmma::load_matrix_sync(in_frag, sharedmem[1] + (compute_idx * TENSOR_CORE_K + col), SM_SIZE_COL);
+
+            for(int i = 0; i < 8; i++) {
+                for(int j = 0; j < 4; j++) {
+                    pad_frag[IDX(i, j, TENSOR_CORE_K)] = sharedmem[1][IDX(i, j + compute_idx * TENSOR_CORE_K + col, ldm)];
+                }
+            }
+            wmma::load_matrix_sync(in_frag, pad_frag, TENSOR_CORE_K);
             wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);
         }
         wmma::store_matrix_sync(out + begin + IDX(HALO + col / 7, HALO, ldm), acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
