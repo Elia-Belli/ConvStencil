@@ -20,13 +20,13 @@ using namespace nvcuda;
 #define ceild(n,d)	(((n)-1)/(d) + 1)
 
 #define BLOCK_SIZE_ROW 32
-#define BLOCK_SIZE_COL 128  // 64
+#define BLOCK_SIZE_COL 64
 #define HALO 3
-#define D_BLOCK_SIZE_COL (BLOCK_SIZE_COL + HALO * 2)    // 128 + 6 = 134
+#define D_BLOCK_SIZE_COL (BLOCK_SIZE_COL + HALO * 2)    // 64 + 6 = 70
 #define D_BLOCK_SIZE_ROW (BLOCK_SIZE_ROW + HALO * 2)    // 32 + 6  = 38
 #define PAD 2
 #define SM_SIZE_COL (7 * D_BLOCK_SIZE_ROW + PAD)    // 7 * 38 + 2  = 268
-#define SM_SIZE_ROW (D_BLOCK_SIZE_COL / 8)          // 134 / 8     = 16
+#define SM_SIZE_ROW (D_BLOCK_SIZE_COL / 8)          // 70 / 8     = 8
 #define UNIT_LENGTH 7
 #define TENSOR_CORE_M 16 // 8
 #define TENSOR_CORE_N 16 // 8
@@ -100,7 +100,9 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
  * 
 */
 void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int times, const int input_m, const int input_n) {
+    
     real_t param_matrix_h[2][MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K] = {0.0};
+    int pad_offset = 8 * TENSOR_CORE_M;
 
     // Build Weight Matrix A
     for (int col = 0; col < TENSOR_CORE_M; col++) {
@@ -108,8 +110,8 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
             for(int j = 0; j < UNIT_LENGTH; j++) {
                 if (j >= col) {
                     int idx = (i * UNIT_LENGTH + j) * TENSOR_CORE_M + col;
-                    param_matrix_h[0][idx] = params[i * UNIT_LENGTH + j - col];
-                    param_matrix_h[0][idx+7] = params[i * UNIT_LENGTH + j - col];
+                    int row = idx / TENSOR_CORE_M;
+                    param_matrix_h[0][idx + pad_offset * (row / 8)] = params[i * UNIT_LENGTH + j - col];
                 }
             }
         }
@@ -120,8 +122,8 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
             for(int j = 0; j < UNIT_LENGTH; j++) {
                 if (j < col - 8) {
                     int idx = (i * UNIT_LENGTH + j) * TENSOR_CORE_M + col;
-                    param_matrix_h[1][idx] = params[i * UNIT_LENGTH + j - col + 15];
-                    param_matrix_h[1][idx-7] = params[i * UNIT_LENGTH + j - col + 15];
+                    int row = idx / TENSOR_CORE_M;
+                    param_matrix_h[1][idx + pad_offset * (row / 8)] = params[i * UNIT_LENGTH + j - col + 15];
                 }
             }
         }
@@ -204,11 +206,12 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
 
     float debug_sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL] = {0.0};
     // fill debug_sharedmem
-    for (int i = 0; i < D_BLOCK_SIZE_ROW * D_BLOCK_SIZE_COL; i += 256) {
-        int row = i / D_BLOCK_SIZE_COL;
-        int col = i % D_BLOCK_SIZE_COL;
-        debug_sharedmem[0][lookup_table1_h[row][col]] = in[1 + IDX(row, col, cols)];
-        debug_sharedmem[1][lookup_table2_h[row][col]] = in[1 + IDX(row, col, cols)];
+    for (int i = 0; i < D_BLOCK_SIZE_ROW; i++){
+        for(int j = 0; j < D_BLOCK_SIZE_COL; j++) 
+        {
+            debug_sharedmem[0][lookup_table1_h[i][j]] = in[IDX(i, j, cols)];
+            debug_sharedmem[1][lookup_table2_h[i][j]] = in[IDX(i, j, cols)];
+        }
     }
 
     std::cout << "\nStencil2Row Matrix A Tile" << std::endl;
