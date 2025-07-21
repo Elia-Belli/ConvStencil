@@ -84,7 +84,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 
             for(int i = 0; i < 8; i++) {
                 for(int j = 0; j < 4; j++) {
-                    in_pad_frag[IDX(i, j, TENSOR_CORE_K)] = sharedmem[0][IDX(i, j + compute_idx * TENSOR_CORE_K + col, SM_SIZE_COL)];
+                    in_pad_frag[IDX(i, j, TENSOR_CORE_K)] = sharedmem[0][IDX(i, j + compute_idx * 4 + col, SM_SIZE_COL)];
                 }
             }
 
@@ -97,7 +97,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 
             for(int i = 0; i < 8; i++) {
                 for(int j = 0; j < 4; j++) {
-                    in_pad_frag[IDX(i, j, TENSOR_CORE_K)] = sharedmem[1][IDX(i, j + compute_idx * TENSOR_CORE_K + col, SM_SIZE_COL)];
+                    in_pad_frag[IDX(i, j, TENSOR_CORE_K)] = sharedmem[1][IDX(i, j + compute_idx * 4 + col, SM_SIZE_COL)];
                 }
             }
             wmma::load_matrix_sync(in_frag, in_pad_frag, TENSOR_CORE_K);
@@ -107,7 +107,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         wmma::store_matrix_sync(out_pad_frag, acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
         for(int i = 0; i < 8; i++) {
             for(int j = 0; j < 8; j++) {
-                out[IDX(i, j + (begin + IDX(HALO + col / 7, HALO, ldm)), ldm)] = out_pad_frag[IDX(i, j, TENSOR_CORE_M)];
+                out[begin + IDX(HALO + col / 7, HALO, ldm) + IDX(i, j, TENSOR_CORE_M)] = out_pad_frag[IDX(i, j, TENSOR_CORE_M)];
             }
         }
         //wmma::store_matrix_sync(out + begin + IDX(HALO + col / 7, HALO, ldm), acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
