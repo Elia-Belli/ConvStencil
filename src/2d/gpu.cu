@@ -92,7 +92,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
 
-            if(tid == 0) {
+            if(tid % 32 == 0) {
                 for(int i = 0; i < 8; i++) {
                     for(int j = 0; j < 4; j++) {
                         in_pad_frag[IDX(i, j, TENSOR_CORE_K)] = sharedmem[0][IDX(i, compute_idx * 4 + col + j, SM_SIZE_COL)];
@@ -108,7 +108,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
 
-            if(tid == 0) {
+            if(tid % 32 == 0) {
                 for(int i = 0; i < 8; i++) {
                     for(int j = 0; j < 4; j++) {
                         in_pad_frag[IDX(i, j, TENSOR_CORE_K)] = sharedmem[1][IDX(i, compute_idx * 4 + col + j, SM_SIZE_COL)];
