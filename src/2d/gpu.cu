@@ -97,7 +97,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
             if(tid % 32 == 0) {
                 for(int i = 0; i < 8; i++) {
                     for(int j = 0; j < 4; j++) {
-                        in_pad_frag[warp_in_offset + (i, j, TENSOR_CORE_K)] = sharedmem[0][IDX(i, compute_idx * 4 + col + j, SM_SIZE_COL)];
+                        in_pad_frag[warp_in_offset + IDX(i, j, TENSOR_CORE_K)] = sharedmem[0][IDX(i, compute_idx * 4 + col + j, SM_SIZE_COL)];
                     }
                 }
             }
