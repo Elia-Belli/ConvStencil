@@ -64,13 +64,13 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         sharedmem[0][lookup_table1[i]] = in[begin + IDX(row, col, ldm)];
         sharedmem[1][lookup_table2[i]] = in[begin + IDX(row, col, ldm)];
     }
-    if (tid % 32 == 0){
-        for(int i = warp_id; i < TENSOR_CORE_M * TENSOR_CORE_K * WARP_PER_BLOCK; i+= warp_id) {
-            in_pad_frag[i] = 0.0f;
-        }
-        for(int i = warp_id; i < TENSOR_CORE_M * TENSOR_CORE_M * WARP_PER_BLOCK; i+= warp_id) {
-            out_pad_frag[i] = 0.0f;
-        }
+    #pragma unroll
+    for(int i = tid; i < TENSOR_CORE_M * TENSOR_CORE_K * WARP_PER_BLOCK; i+= totalThreads) {
+        in_pad_frag[i] = 0.0f;
+    }
+    #pragma unroll
+    for(int i = tid; i < TENSOR_CORE_M * TENSOR_CORE_M * WARP_PER_BLOCK; i+= totalThreads) {
+        out_pad_frag[i] = 0.0f;
     }
     __syncthreads();
 
