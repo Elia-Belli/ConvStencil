@@ -249,7 +249,7 @@ int main(int argc, char *argv[])
 
     param_box_2d1r[17] = 1.0;
     param_box_2d1r[23] = 1.0;
-    param_box_2d1r[24] = -1.0;
+    param_box_2d1r[24] = -4.0;
     param_box_2d1r[25] = 1.0;
     param_box_2d1r[31] = 1.0;
 
