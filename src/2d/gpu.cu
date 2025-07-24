@@ -43,10 +43,12 @@ __constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
 __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
     
     __shared__ __align__(32) float sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
+    __shared__ float out_frag[TENSOR_CORE_M * TENSOR_CORE_M * WARP_PER_BLOCK];
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
     int tid = threadIdx.x;
     int totalThreads = blockDim.x;
     int warp_id = threadIdx.x / 32;
+    int warp_offset = warp_id * TENSOR_CORE_M * TENSOR_CORE_M;
 
     // Load data into shared memory using lookup tables
     /*
@@ -87,7 +89,27 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
             wmma::load_matrix_sync(in_frag, sharedmem[1] + (compute_idx * TENSOR_CORE_K + col), SM_SIZE_COL);
             wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);
         }
-        wmma::store_matrix_sync(out + begin + IDX(HALO + col / 7, HALO, ldm), acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
+
+        wmma::store_matrix_sync(out_frag + warp_offset, acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
+
+        int out_base_offset1 = begin + IDX(HALO + col / 7, HALO, ldm);
+        int out_base_offset2 = out_base_offset1 + 32 * TENSOR_CORE_M;
+
+        if(tid % 32 == 0){
+            for(int i = 0; i < 8; i++) {
+                for(int j = 0; j < 16; j++) {
+                    out[out_base_offset1 + IDX(i, j, TENSOR_CORE_M)] = out_frag[warp_offset + IDX(i, j, TENSOR_CORE_M)];
+                }
+            }
+            for(int i = 8; i < 16; i++) {
+                for(int j = 0; j < 16; j++) {
+                    out[out_base_offset2 + IDX(i, j, TENSOR_CORE_M)] = out_frag[warp_offset + IDX(i, j, TENSOR_CORE_M)];
+                }
+            }
+        }   
+
+        //__syncthreads();
+        //wmma::store_matrix_sync(out + begin + IDX(HALO + col / 7, HALO, ldm), acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
     }
 }
 
@@ -141,10 +163,10 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
 
     std::cout << "\n[Weight Matrix A]" << std::endl;
     for (int i = 0; i < MMA_NUM; i++) {
-        int mma_offset = i* TENSOR_CORE_M * TENSOR_CORE_K;
-        for(int j=0; j < TENSOR_CORE_K; j++){
-            for(int k=0; k < TENSOR_CORE_M; k++){
-                std::cout << param_matrix_h[0][mma_offset + j * TENSOR_CORE_M + k] << " ";
+        int mma_offset = i * TENSOR_CORE_M;
+        for(int j = 0; j < TENSOR_CORE_K; j++){
+            for(int k = 0; k < TENSOR_CORE_M; k++){
+                std::cout << param_matrix_h[1][IDX(mma_offset + j, k, TENSOR_CORE_M)] << " ";
             }
             std::cout << std::endl;
         }
@@ -152,10 +174,10 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
 
     std::cout << "\n[Weight Matrix B]" << std::endl;
     for (int i = 0; i < MMA_NUM; i++) {
-        int mma_offset = i * TENSOR_CORE_M * TENSOR_CORE_K;
+        int mma_offset = i * TENSOR_CORE_M;
         for(int j = 0; j < TENSOR_CORE_K; j++){
             for(int k = 0; k < TENSOR_CORE_M; k++){
-                std::cout << param_matrix_h[1][mma_offset + j * TENSOR_CORE_M + k] << " ";
+                std::cout << param_matrix_h[1][IDX(mma_offset + j, k, TENSOR_CORE_M)] << " ";
             }
             std::cout << std::endl;
         }
