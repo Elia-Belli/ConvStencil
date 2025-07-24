@@ -93,7 +93,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         wmma::store_matrix_sync(out_frag + warp_offset, acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
 
         int out_base_offset1 = begin + IDX(HALO + col / 7, HALO, ldm);
-        int out_base_offset2 = out_base_offset1 + 32 * TENSOR_CORE_M;
+        int out_base_offset2 = out_base_offset1 + 16 * TENSOR_CORE_M;
 
         if(tid % 32 == 0){
             for(int i = 0; i < 8; i++) {
@@ -101,11 +101,11 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
                     out[out_base_offset1 + IDX(i, j, TENSOR_CORE_M)] = out_frag[warp_offset + IDX(i, j, TENSOR_CORE_M)];
                 }
             }
-            for(int i = 8; i < 16; i++) {
-                for(int j = 0; j < 16; j++) {
-                    out[out_base_offset2 + IDX(i, j, TENSOR_CORE_M)] = out_frag[warp_offset + IDX(i, j, TENSOR_CORE_M)];
-                }
-            }
+            // for(int i = 8; i < 16; i++) {
+            //     for(int j = 0; j < 16; j++) {
+            //         out[out_base_offset2 + IDX(i, j, TENSOR_CORE_M)] = out_frag[warp_offset + IDX(i, j, TENSOR_CORE_M)];
+            //     }
+            // }
         }   
 
         //__syncthreads();
