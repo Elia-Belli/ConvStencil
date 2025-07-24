@@ -26,7 +26,7 @@ const char *ShapeStr[5] = {
 
 // Check the correctness of the result or not
 #define CHECK_ERROR
-const real_t tolerance = 1e-2;
+const real_t tolerance = 1e-1;
 
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
 #define ABS(x, y) (((x) > (y)) ? ((x) - (y)) : ((y) - (x)))

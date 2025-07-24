@@ -34,7 +34,7 @@ using namespace nvcuda;
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
 #define WARP_PER_BLOCK 8
 #define WARP_COLS 28
-#define MMA_NUM ceild(UNIT_LENGTH * UNIT_LENGTH, TENSOR_CORE_K)
+#define MMA_NUM ceild(UNIT_LENGTH * UNIT_LENGTH, TENSOR_CORE_K) // 7
 // #define ACCS_PER_WARP (BLOCK_SIZE_COL * BLOCK_SIZE_ROW / 64 / WARP_PER_BLOCK)
 
 __constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
@@ -109,7 +109,7 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
                 if (j >= col) {
                     int idx = (i * UNIT_LENGTH + j) * TENSOR_CORE_M + col;
                     param_matrix_h[0][idx] = params[i * UNIT_LENGTH + j - col];
-                    param_matrix_h[0][idx+7] = params[i * UNIT_LENGTH + j - col];
+                    param_matrix_h[0][idx+8] = params[i * UNIT_LENGTH + j - col];
                 }
             }
         }
@@ -121,7 +121,7 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
                 if (j < col - 8) {
                     int idx = (i * UNIT_LENGTH + j) * TENSOR_CORE_M + col;
                     param_matrix_h[1][idx] = params[i * UNIT_LENGTH + j - col + 15];
-                    param_matrix_h[1][idx-7] = params[i * UNIT_LENGTH + j - col + 15];
+                    param_matrix_h[1][idx-8] = params[i * UNIT_LENGTH + j - col + 15];
                 }
             }
         }
