@@ -98,12 +98,14 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         if(tid % 32 == 0){
             for(int i = 0; i < 8; i++) {
                 for(int j = 0; j < 8; j++) {
-                    out[out_base_offset1 + IDX(i, j, 8)] = out_frag[warp_offset + IDX(i, j, TENSOR_CORE_M)];
+                    out[out_base_offset1 + IDX(i, j, 8)] = out_frag[warp_offset + IDX(i, j, TENSOR_CORE_M)] +
+                                                           out_frag[warp_offset + IDX(i, j+8, TENSOR_CORE_M)];
                 }
             }
             for(int i = 8; i < 16; i++) {
                 for(int j = 0; j < 8; j++) {
-                    out[out_base_offset2 + IDX(i, j, 8)] = out_frag[warp_offset + IDX(i, j, TENSOR_CORE_M)];
+                    out[out_base_offset2 + IDX(i, j, 8)] = out_frag[warp_offset + IDX(i, j, TENSOR_CORE_M)] +
+                                                           out_frag[warp_offset + IDX(i, j+8, TENSOR_CORE_M)];
                 }
             }
         }   
