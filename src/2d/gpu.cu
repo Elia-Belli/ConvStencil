@@ -96,11 +96,11 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         out_base_offset = begin + IDX(HALO + col / 7, HALO, ldm);
         
         #pragma unroll
-        for(int i = tid; i < 64; i+= 32) {
-            int row = i / 8;
-            int col = i % 8;
-            out[out_base_offset + IDX(row, col, 8)] = out_frag[warp_offset + IDX(row, col, TENSOR_CORE_M)];
-            out[out_base_offset + IDX(row + 8, col, 8)] = out_frag[warp_offset + IDX(row + 8, col, TENSOR_CORE_M)];
+        for(int t = tid; t < 64; t+= 32) {
+            int i = t / 8;
+            int j = t % 8;
+            out[out_base_offset + IDX(i, j, 8)] = out_frag[warp_offset + IDX(i, j, TENSOR_CORE_M)];
+            out[out_base_offset + IDX(i + 8, j, 8)] = out_frag[warp_offset + IDX(i + 8, j, TENSOR_CORE_M)];
         }
         __syncthreads();
     }
