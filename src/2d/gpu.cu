@@ -49,6 +49,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
     int totalThreads = blockDim.x;
     int warp_id = threadIdx.x / 32;
     int warp_offset = warp_id * TENSOR_CORE_M * TENSOR_CORE_M;
+    int out_base_offset;
 
     // Load data into shared memory using lookup tables
     /*
@@ -92,22 +93,16 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 
         wmma::store_matrix_sync(out_frag + warp_offset, acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
 
-        int out_base_offset1 = begin + IDX(HALO + col / 7, HALO, ldm);
+        out_base_offset = begin + IDX(HALO + col / 7, HALO, ldm);
+        
+        #pragma unroll
+        for(int i = tid; i < 64; i+= totalThreads) {
+            int row = i / 8;
+            int col = i % 8;
+            out[out_base_offset + IDX(row, col, 8)] = out_frag[warp_offset + IDX(row, col, TENSOR_CORE_M)];
+            out[out_base_offset + IDX(row + 8, col, 8)] = out_frag[warp_offset + IDX(row + 8, col, TENSOR_CORE_M)];
+        }
 
-        if(tid % 32 == 0){
-            #pragma unroll
-            for(int i = 0; i < 8; i++) {
-                for(int j = 0; j < 8; j++) {
-                    out[out_base_offset1 + IDX(i, j, 8)] = out_frag[warp_offset + IDX(i, j, TENSOR_CORE_M)];
-                }
-            }
-            #pragma unroll
-            for(int i = 8; i < 16; i++) {
-                for(int j = 0; j < 8; j++) {
-                    out[out_base_offset1 + IDX(i, j, 8)] = out_frag[warp_offset + IDX(i, j, TENSOR_CORE_M)];
-                }
-            }
-        }   
     }
 }
 
@@ -158,30 +153,6 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
         }
         std::cout << std::endl;
     }
-
-    std::cout << "\n[Weight Matrix A]" << std::endl;
-    for (int i = 0; i < MMA_NUM; i++) {
-        int mma_offset = i * TENSOR_CORE_M;
-        for(int j = 0; j < TENSOR_CORE_K; j++){
-            for(int k = 0; k < TENSOR_CORE_M; k++){
-                std::cout << param_matrix_h[1][IDX(mma_offset + j, k, TENSOR_CORE_M)] << " ";
-            }
-            std::cout << std::endl;
-        }
-    }
-
-    std::cout << "\n[Weight Matrix B]" << std::endl;
-    for (int i = 0; i < MMA_NUM; i++) {
-        int mma_offset = i * TENSOR_CORE_M;
-        for(int j = 0; j < TENSOR_CORE_K; j++){
-            for(int k = 0; k < TENSOR_CORE_M; k++){
-                std::cout << param_matrix_h[1][IDX(mma_offset + j, k, TENSOR_CORE_M)] << " ";
-            }
-            std::cout << std::endl;
-        }
-    }
-    std::cout << std::endl;
-    
     #endif
 
     const int rows = input_m + 2 * HALO;
@@ -219,38 +190,6 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
             }
         }
     }
-
-    #ifdef DEBUG
-
-    float debug_sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL] = {0.0};
-    // fill debug_sharedmem
-    for (int i = 0; i < D_BLOCK_SIZE_ROW * D_BLOCK_SIZE_COL; i += 256) {
-        int row = i / D_BLOCK_SIZE_COL;
-        int col = i % D_BLOCK_SIZE_COL;
-        debug_sharedmem[0][lookup_table1_h[row][col]] = in[1 + IDX(row, col, cols)];
-        debug_sharedmem[1][lookup_table2_h[row][col]] = in[1 + IDX(row, col, cols)];
-    }
-
-    std::cout << "\nStencil2Row Matrix A Tile" << std::endl;
-    for (int i = 0; i < SM_SIZE_ROW; i++)
-    {
-        for(int j = 0; j < SM_SIZE_COL; j++) 
-        {
-            std::cout << debug_sharedmem[0][i * SM_SIZE_COL + j] << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    std::cout << "\nStencil2Row Matrix B Tile" << std::endl;
-    for (int i = 0; i < SM_SIZE_ROW; i++)
-    {
-        for(int j = 0; j < SM_SIZE_COL; j++) 
-        {
-            std::cout << debug_sharedmem[1][i * SM_SIZE_COL + j] << " ";
-        }
-        std::cout << std::endl;
-    }
-    #endif
 
     int * lookup_table1_d;
     int * lookup_table2_d;
