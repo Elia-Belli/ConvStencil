@@ -93,8 +93,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         wmma::store_matrix_sync(out_frag + warp_offset, acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
 
         int out_base_offset1 = begin + IDX(HALO + col / 7, HALO, ldm);
-        int begin2 = IDX(blockIdx.x * BLOCK_SIZE_ROW, (blockIdx.y + 1) * BLOCK_SIZE_COL + 1, ldm);
-        int out_base_offset2 = begin2 + IDX(HALO + col / 7, HALO, ldm);
+        int out_base_offset2 = out_base_offset1 + 64;
 
         if(tid % 32 == 0){
             #pragma unroll
