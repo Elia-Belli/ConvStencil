@@ -43,12 +43,12 @@ __constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
 __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
     
     __shared__ __align__(32) float sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
-    __shared__ float out_frag[TENSOR_CORE_M * TENSOR_CORE_M * WARP_PER_BLOCK];
+    __shared__ __align__(32) float out_frag[TENSOR_CORE_M * (TENSOR_CORE_K + 1) * WARP_PER_BLOCK];
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
     int tid = threadIdx.x;
     int totalThreads = blockDim.x;
     int warp_id = threadIdx.x / 32;
-    int warp_offset = warp_id * TENSOR_CORE_M * TENSOR_CORE_M;
+    int warp_offset = warp_id * TENSOR_CORE_M * TENSOR_CORE_K;
     int out_base_offset;
 
     // Load data into shared memory using lookup tables
@@ -99,8 +99,8 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         for(int t = (tid % 32); t < 64; t+= 32) {
             int i = t / 8;
             int j = t % 8;
-            out[out_base_offset + IDX(i, j, 8)] = out_frag[warp_offset + IDX(i, j, TENSOR_CORE_M)];
-            out[out_base_offset + IDX(i + 8, j, 8)] = out_frag[warp_offset + IDX(i + 8, j, TENSOR_CORE_M)];
+            out[out_base_offset + IDX(i, j, 8)] = out_frag[warp_offset + IDX(i, j, TENSOR_CORE_K)];
+            out[out_base_offset + IDX(i + 8, j, 8)] = out_frag[warp_offset + IDX(i + 8, j, TENSOR_CORE_K)];
         }
         __syncthreads();
     }
