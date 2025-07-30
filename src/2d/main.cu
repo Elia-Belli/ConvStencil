@@ -36,7 +36,7 @@ const real_t tolerance = 1e-1;
 // #define RUN_GPU
 
 // Write output to stdout
-//#define PRINT_OUTPUT
+#define PRINT_OUTPUT
 
 /* Global variable */
 int NY;
