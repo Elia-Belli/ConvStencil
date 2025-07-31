@@ -19,7 +19,7 @@ using namespace nvcuda;
 
 #define ceild(n,d)	(((n)-1)/(d) + 1)
 
-#define BLOCK_SIZE_ROW 32
+#define BLOCK_SIZE_ROW 16 // 32
 #define BLOCK_SIZE_COL 128  // 64
 #define HALO 3
 #define D_BLOCK_SIZE_COL (BLOCK_SIZE_COL + HALO * 2)    // 128 + 6 = 134
@@ -32,8 +32,8 @@ using namespace nvcuda;
 #define TENSOR_CORE_N 16 // 8
 #define TENSOR_CORE_K 8 // 4
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
-#define WARP_PER_BLOCK 8
-#define WARP_COLS (7 * D_BLOCK_SIZE_ROW) / WARP_PER_BLOCK
+#define WARP_PER_BLOCK 16
+#define WARP_COLS 7 //(7 * D_BLOCK_SIZE_ROW) / WARP_PER_BLOCK
 #define MMA_NUM ceild(UNIT_LENGTH * UNIT_LENGTH, TENSOR_CORE_K) // 7
 // #define ACCS_PER_WARP (BLOCK_SIZE_COL * BLOCK_SIZE_ROW / 64 / WARP_PER_BLOCK)
 
@@ -48,7 +48,6 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
     int tid = threadIdx.x;
     int totalThreads = blockDim.x;
     int warp_id = threadIdx.x / 32;
-    //int warp_offset = warp_id * TENSOR_CORE_M * TENSOR_CORE_M;
     int out_base_offset;
 
     // Load data into shared memory using lookup tables
@@ -102,7 +101,6 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
             out[out_base_offset + IDX(i, j, 8)] = out_frag[warp_id][IDX(i, j, TENSOR_CORE_M)];
             out[out_base_offset + IDX(i + 8, j, 8)] = out_frag[warp_id][IDX(i + 8, j, TENSOR_CORE_M)];
         }
-        __syncthreads();
     }
 }
 
