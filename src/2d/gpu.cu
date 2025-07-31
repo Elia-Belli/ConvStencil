@@ -146,16 +146,6 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
             }
         }
     }
-    int q = 0;
-    for(int row = 8; row < 7 * TENSOR_CORE_K; row+= 16){
-        for(int i = 0; i < 8; i++){
-            for(int j = 0; j < 8; j++){
-                param_matrix_h[0][IDX(q + i, j + 8, TENSOR_CORE_M)] = param_matrix_h[0][IDX(i + row, j, TENSOR_CORE_M)];
-                param_matrix_h[0][IDX(q + i + 8, j, TENSOR_CORE_M)] = param_matrix_h[0][IDX(i + row + 8, j, TENSOR_CORE_M)];
-            }
-        }
-        q += 8;
-    }
 
     // Build Weight Matrix B
     for (int col = 0; col < 8; col++) {
@@ -168,11 +158,14 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
             }
         }
     }
-    q = 0;
+
+    int q = 0;
     for(int row = 8; row < 7 * TENSOR_CORE_K; row+= 16){
         for(int i = 0; i < 8; i++){
-            for(int j = 8; j < 16; j++){
-                param_matrix_h[1][IDX(q + i, j - 8, TENSOR_CORE_M)] = param_matrix_h[1][IDX(i + row, j, TENSOR_CORE_M)];
+            for(int j = 0; j < 8; j++){
+                param_matrix_h[0][IDX(q + i, j + 8, TENSOR_CORE_M)] = param_matrix_h[0][IDX(i + row, j, TENSOR_CORE_M)];
+                param_matrix_h[0][IDX(q + i + 8, j, TENSOR_CORE_M)] = param_matrix_h[0][IDX(i + row + 8, j, TENSOR_CORE_M)];
+                param_matrix_h[1][IDX(q + i, j + 8, TENSOR_CORE_M)] = param_matrix_h[1][IDX(i + row, j, TENSOR_CORE_M)];
                 param_matrix_h[1][IDX(q + i + 8, j, TENSOR_CORE_M)] = param_matrix_h[1][IDX(i + row + 8, j, TENSOR_CORE_M)];
             }
         }
