@@ -117,7 +117,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         for(int t = (tid % 32); t < 64; t+= 32) {
             int i = t / 8;
             int j = t % 8;
-            out[out_base_offset + IDX(i, j, 8)] = out_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_M)];
+            out[out_base_offset + IDX(i, j, 8)] = out_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_M)]
                                                 + out_pad_frag[warp_id][IDX(i + 8, j, TENSOR_CORE_M)];
         }
     }
