@@ -118,7 +118,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
             int i = t / 8;
             int j = t % 8;
             out[out_base_offset + IDX(i, j, 8)] = out_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_M)]
-                                                + out_pad_frag[warp_id][IDX(i + 8, j, TENSOR_CORE_M)];
+                                                + out_pad_frag[warp_id][IDX(i + 8, j + 8, TENSOR_CORE_M)];
         }
     }
 }
@@ -133,8 +133,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 */
 void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, const real_t * __restrict__ params, const int times, const int input_m, const int input_n) {
     
-    real_t param_matrix_h[2][MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K] = {0.0};
-    int pad_offset = 4 * TENSOR_CORE_M;
+    real_t param_matrix_h[2][7 * TENSOR_CORE_M * TENSOR_CORE_K] = {0.0};
 
     // Build Weight Matrix A
     for (int col = 0; col < TENSOR_CORE_M; col++) {
@@ -147,6 +146,17 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
             }
         }
     }
+    int q = 0;
+    for(int row = 8; row < 7 * TENSOR_CORE_K; row+= 16){
+        for(int i = 0; i < 8; i++){
+            for(int j = 0; j < 8; j++){
+                param_matrix_h[0][IDX(q + i, j + 8, TENSOR_CORE_M)] = param_matrix_h[0][IDX(i + row, j, TENSOR_CORE_M)];
+                param_matrix_h[0][IDX(q + i + 8, j, TENSOR_CORE_M)] = param_matrix_h[0][IDX(i + row + 8, j, TENSOR_CORE_M)];
+            }
+        }
+        q += 8;
+    }
+
     // Build Weight Matrix B
     for (int col = 0; col < 8; col++) {
         for(int i = 0; i < UNIT_LENGTH; i++) {
@@ -158,8 +168,18 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
             }
         }
     }
+    q = 0;
+    for(int row = 8; row < 7 * TENSOR_CORE_K; row+= 16){
+        for(int i = 0; i < 8; i++){
+            for(int j = 8; j < 16; j++){
+                param_matrix_h[1][IDX(q + i, j - 8, TENSOR_CORE_M)] = param_matrix_h[1][IDX(i + row, j, TENSOR_CORE_M)];
+                param_matrix_h[1][IDX(q + i + 8, j, TENSOR_CORE_M)] = param_matrix_h[1][IDX(i + row + 8, j, TENSOR_CORE_M)];
+            }
+        }
+        q += 8;
+    }
 
-    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, sizeof(param_matrix_h)));
+    CUDA_CHECK(cudaMemcpyToSymbol(param_matrix_d, param_matrix_h, MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K * 2 * sizeof(real_t)));
 
     #ifdef DEBUG
 
