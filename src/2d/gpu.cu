@@ -43,13 +43,12 @@ __constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
 __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
     
     __shared__ __align__(32) float sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
-    __shared__ float out_pad_frag[TENSOR_CORE_M * TENSOR_CORE_M * WARP_PER_BLOCK];
+    __shared__ float out_pad_frag[WARP_PER_BLOCK][TENSOR_CORE_M * WARP_PER_BLOCK];
 
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
     int tid = threadIdx.x;
     int totalThreads = blockDim.x;
     int warp_id = threadIdx.x / 32;
-    int warp_out_offset = warp_id * TENSOR_CORE_M * TENSOR_CORE_M;
 
     // Load data into shared memory using lookup tables
     /*
@@ -63,11 +62,6 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         int col = i % D_BLOCK_SIZE_COL;
         sharedmem[0][lookup_table1[i]] = in[begin + IDX(row, col, ldm)];
         sharedmem[1][lookup_table2[i]] = in[begin + IDX(row, col, ldm)];
-    }
-
-    #pragma unroll
-    for(int i = tid; i < TENSOR_CORE_M * TENSOR_CORE_M * WARP_PER_BLOCK; i+= totalThreads) {
-        out_pad_frag[i] = 0.0f;
     }
     __syncthreads();
 
@@ -96,16 +90,15 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
             wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);
         }
 
-        wmma::store_matrix_sync(out_pad_frag + warp_out_offset, acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
+        wmma::store_matrix_sync(out_pad_frag[warp_id], acc_frag, TENSOR_CORE_M, wmma::mem_row_major);
 
-        if(tid % 32 == 0){
-            int out_base_offset = begin + IDX(HALO + col / 7, HALO, ldm);
-            for(int i = 0; i < 8; i++) {
-                for(int j = 0; j < 8; j++) {
-                    out[out_base_offset + IDX(i, j, 8)] = out_pad_frag[warp_out_offset + IDX(i, j, TENSOR_CORE_M)];
-                }
-            }
-        }   
+        int out_base_offset = begin + IDX(HALO + col / 7, HALO, ldm);
+        #pragma unroll
+        for(int t = (tid % 32); t < 64; t+= 32) {
+            int i = t / 8;
+            int j = t % 8;
+            out[out_base_offset + IDX(i, j, 8)] = out_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_M)];
+        }
     }
 }
 
