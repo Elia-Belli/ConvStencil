@@ -13,11 +13,12 @@
 #include "precision.h"
 // #include "../utils.h"
 
-//#define DEBUG
+#define DEBUG
 
 using namespace nvcuda;
 
 #define ceild(n,d)	(((n)-1)/(d) + 1)
+#define IDX(x, y, ldm) ((x) * (ldm) + (y))
 
 #define BLOCK_SIZE_ROW 32
 #define BLOCK_SIZE_COL 64
@@ -31,10 +32,9 @@ using namespace nvcuda;
 #define TENSOR_CORE_M 16 // 8
 #define TENSOR_CORE_N 16 // 8
 #define TENSOR_CORE_K 8 // 4
-#define IDX(x, y, ldm) ((x) * (ldm) + (y))
 #define WARP_PER_BLOCK 8
 #define WARP_COLS 28
-#define MMA_NUM 7
+#define MMA_NUM ceild(UNIT_LENGTH * UNIT_LENGTH, 16) // 7
 // #define ACCS_PER_WARP (BLOCK_SIZE_COL * BLOCK_SIZE_ROW / 64 / WARP_PER_BLOCK)
 
 __constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
@@ -43,7 +43,8 @@ __constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
 __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
     
     __shared__ __align__(32) float sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
-    __shared__ float out_pad_frag[WARP_PER_BLOCK][TENSOR_CORE_M * WARP_PER_BLOCK];
+    __shared__ float in_pad_frag[WARP_PER_BLOCK][TENSOR_CORE_M * TENSOR_CORE_K];
+    __shared__ float out_pad_frag[WARP_PER_BLOCK][TENSOR_CORE_M * TENSOR_CORE_M];
 
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
     int tid = threadIdx.x;
@@ -77,16 +78,35 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
     wmma::fragment<wmma::matrix_a, 16, 16, 8, wmma::precision::tf32, wmma::row_major> in_frag;
     for (int col = warp_id * WARP_COLS; col < (warp_id + 1) * WARP_COLS; col += UNIT_LENGTH) {
         wmma::fill_fragment(acc_frag, 0.0);
-        
+
+
         #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
-            wmma::load_matrix_sync(in_frag, sharedmem[0] + (compute_idx * TENSOR_CORE_K + col), SM_SIZE_COL);
+
+            #pragma unroll
+            for(int t = (tid % 32); t < 128; t+= 32) {
+                int i = t / 8;
+                int j = t % 8;
+                in_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_K)]   = sharedmem[0][IDX(i, col + j + compute_idx * TENSOR_CORE_K * 2, SM_SIZE_COL)];
+                in_pad_frag[warp_id][IDX(i + 8, j, TENSOR_CORE_K)] = sharedmem[0][IDX(i, col + j + 8 + compute_idx * TENSOR_CORE_K * 2, SM_SIZE_COL)];
+            }
+            
+            wmma::load_matrix_sync(in_frag, in_pad_frag[warp_id], TENSOR_CORE_K);
             wmma::mma_sync(acc_frag, in_frag, param_frag[0][compute_idx], acc_frag);
         }
 
         #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
-            wmma::load_matrix_sync(in_frag, sharedmem[1] + (compute_idx * TENSOR_CORE_K + col), SM_SIZE_COL);
+
+            #pragma unroll
+            for(int t = (tid % 32); t < 128; t+= 32) {
+                int i = t / 8;
+                int j = t % 8;
+                in_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_K)]   = sharedmem[1][IDX(i, col + j + compute_idx * TENSOR_CORE_K * 2, SM_SIZE_COL)];
+                in_pad_frag[warp_id][IDX(i + 8, j, TENSOR_CORE_K)] = sharedmem[1][IDX(i, col + j + 8 + compute_idx * TENSOR_CORE_K * 2, SM_SIZE_COL)];
+            }
+            
+            wmma::load_matrix_sync(in_frag, in_pad_frag[warp_id], TENSOR_CORE_K);
             wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);
         }
 
@@ -98,6 +118,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
             int i = t / 8;
             int j = t % 8;
             out[out_base_offset + IDX(i, j, 8)] = out_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_M)];
+                                                + out_pad_frag[warp_id][IDX(i + 8, j, TENSOR_CORE_M)];
         }
     }
 }
