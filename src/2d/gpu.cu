@@ -51,6 +51,8 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
     int totalThreads = blockDim.x;
     int warp_id = threadIdx.x / 32;
 
+    int mma_offset;
+
     // Load data into shared memory using lookup tables
     /*
         Data is loaded from global memory, in which resides the original input array.
@@ -82,13 +84,14 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 
         #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
+            mma_offset = compute_idx * TENSOR_CORE_K * 2;
 
             #pragma unroll
             for(int t = (tid % 32); t < 64; t+= 32) {
                 int i = t / 8;
                 int j = t % 8;
-                in_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_K)]     = sharedmem[0][IDX(i, col + j + compute_idx * TENSOR_CORE_K * 2, SM_SIZE_COL)];
-                in_pad_frag[warp_id][IDX(i + 8, j, TENSOR_CORE_K)] = sharedmem[0][IDX(i, col + j + 8 + compute_idx * TENSOR_CORE_K * 2, SM_SIZE_COL)];
+                in_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_K)]     = sharedmem[0][IDX(i, col + j + mma_offset, SM_SIZE_COL)];
+                in_pad_frag[warp_id][IDX(i + 8, j, TENSOR_CORE_K)] = sharedmem[0][IDX(i, col + j + 8 + mma_offset, SM_SIZE_COL)];
             }
             
             wmma::load_matrix_sync(in_frag, in_pad_frag[warp_id], TENSOR_CORE_K);
@@ -97,13 +100,14 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 
         #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
+            mma_offset = compute_idx * TENSOR_CORE_K * 2;
 
             #pragma unroll
             for(int t = (tid % 32); t < 64; t+= 32) {
                 int i = t / 8;
                 int j = t % 8;
-                in_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_K)]     = sharedmem[1][IDX(i, col + j + compute_idx * TENSOR_CORE_K * 2, SM_SIZE_COL)];
-                in_pad_frag[warp_id][IDX(i + 8, j, TENSOR_CORE_K)] = sharedmem[1][IDX(i, col + j + 8 + compute_idx * TENSOR_CORE_K * 2, SM_SIZE_COL)];
+                in_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_K)]     = sharedmem[1][IDX(i, col + j + mma_offset, SM_SIZE_COL)];
+                in_pad_frag[warp_id][IDX(i + 8, j, TENSOR_CORE_K)] = sharedmem[1][IDX(i, col + j + 8 + mma_offset, SM_SIZE_COL)];
             }
             
             wmma::load_matrix_sync(in_frag, in_pad_frag[warp_id], TENSOR_CORE_K);
