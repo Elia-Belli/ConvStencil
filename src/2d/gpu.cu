@@ -238,31 +238,49 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     // Re-organizing Lookup Tables
     int new_SM_SIZE_ROW = SM_SIZE_ROW * 2;
     int new_SM_SIZE_COL = SM_SIZE_COL / 2;
-    int z, z_row, z_col, tile_idx, new_z_row, new_z_col, intra_tile_col;
+    int z1, z_row1, z_col1, tile_idx1, new_z_row1, new_z_col1, intra_tile_col1;
+    int z2, z_row2, z_col2, tile_idx2, new_z_row2, new_z_col2, intra_tile_col2;
 
     for (int i = 0; i < D_BLOCK_SIZE_ROW; i++) {
         for (int j = 0; j < D_BLOCK_SIZE_COL; j++) {
 
-            z = lookup_table1_h[i][j];
+            z1 = lookup_table1_h[i][j];
+            z2 = lookup_table2_h[i][j];
 
-            z_row = z / SM_SIZE_COL;
-            z_col = z % SM_SIZE_COL;
+            z_row1 = z1 / SM_SIZE_COL;
+            z_col1 = z1 % SM_SIZE_COL;
+            z_row2 = z2 / SM_SIZE_COL;
+            z_col2 = z2 % SM_SIZE_COL;
 
-            tile_idx = z_col / 8;
-            intra_tile_col = z % 8;
+            tile_idx1 = z_col1 / 8;
+            intra_tile_col1 = z1 % 8;
+            tile_idx2 = z_col2 / 8;
+            intra_tile_col2 = z2 % 8;
 
-            if (tile_idx % 2 == 1)
+            if (tile_idx1 % 2 == 1)
             {   
-                new_z_row = (z_row + 8);
-                new_z_col = (tile_idx/2) * 8;
+                new_z_row1 = (z_row1 + 8);
+                new_z_col1 = (tile_idx1/2) * 8;
             }
             else
             {
-                new_z_row = z_row;
-                new_z_col = (tile_idx/2) * 8;
+                new_z_row1 = z_row1;
+                new_z_col1 = (tile_idx1/2) * 8;
             }
 
-            lookup_table1_h[i][j] = IDX(new_z_row, new_z_col + intra_tile_col, new_SM_SIZE_COL);
+            if (tile_idx2 % 2 == 1)
+            {   
+                new_z_row2 = (z_row2 + 8);
+                new_z_col2 = (tile_idx2/2) * 8;
+            }
+            else
+            {
+                new_z_row2 = z_row2;
+                new_z_col2 = (tile_idx2/2) * 8;
+            }
+
+            lookup_table1_h[i][j] = IDX(new_z_row1, new_z_col1 + intra_tile_col1, new_SM_SIZE_COL);
+            lookup_table2_h[i][j] = IDX(new_z_row2, new_z_col2 + intra_tile_col2, new_SM_SIZE_COL);
         }
     }
 
