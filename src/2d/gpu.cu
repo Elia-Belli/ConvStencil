@@ -50,9 +50,6 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
     int totalThreads = blockDim.x;
     int warp_id = threadIdx.x / 32;
 
-    int mma_offset;
-    int load_offset = 4 * SM_SIZE_COL; // 8 * (SM_SIZE_COL / 2)
-
     // Load data into shared memory using lookup tables
     /*
         Data is loaded from global memory, in which resides the original input array.
@@ -63,12 +60,8 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
     for (int i = tid; i < D_BLOCK_SIZE_ROW * D_BLOCK_SIZE_COL; i += totalThreads) {
         int row = i / D_BLOCK_SIZE_COL;
         int col = i % D_BLOCK_SIZE_COL;
-        int s_row1 = lookup_table1[i] / SM_SIZE_ROW;
-        int s_col1 = lookup_table1[i] / SM_SIZE_COL;
-        int s_row2 = lookup_table2[i] / SM_SIZE_ROW;
-        int s_col2 = lookup_table2[i] / SM_SIZE_COL;
-        sharedmem[0][IDX(s_row1, s_col1 + ( s_col1 % 16 > 8) ? load_offset : 0, SM_SIZE_COL / 2)] = in[begin + IDX(row, col, ldm)];
-        sharedmem[1][IDX(s_row2, s_col2 + ( s_col2 % 16 > 8) ? load_offset : 0, SM_SIZE_COL / 2)] = in[begin + IDX(row, col, ldm)];
+        sharedmem[0][lookup_table1[i]] = in[begin + IDX(row, col, ldm)];
+        sharedmem[1][lookup_table2[i]] = in[begin + IDX(row, col, ldm)];
     }
     __syncthreads();
 
@@ -226,6 +219,7 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     int lookup_table2_h[D_BLOCK_SIZE_ROW][D_BLOCK_SIZE_COL];
     for (int i = 0; i < D_BLOCK_SIZE_ROW; i++) {
         for (int j = 0; j < D_BLOCK_SIZE_COL; j++) {
+
             // Stencil2row Matrix A
             if ((j + 1) % 8 != 0 && j < D_BLOCK_SIZE_COL - 2 * HALO - 1) {
                 lookup_table1_h[i][j] = IDX(j / (UNIT_LENGTH + 1), UNIT_LENGTH * i + j % (UNIT_LENGTH + 1), SM_SIZE_COL);
@@ -238,6 +232,37 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
             } else {
                 lookup_table2_h[i][j] = SM_SIZE_ROW * SM_SIZE_COL - 1;
             }
+        }
+    }
+
+    // Re-organizing Lookup Tables
+    int new_SM_SIZE_ROW = SM_SIZE_ROW * 2;
+    int new_SM_SIZE_COL = SM_SIZE_COL / 2;
+    int z, z_row, z_col, tile_idx, new_z_row, new_z_col, intra_tile_col;
+
+    for (int i = 0; i < D_BLOCK_SIZE_ROW; i++) {
+        for (int j = 0; j < D_BLOCK_SIZE_COL; j++) {
+
+            z = lookup_table1_h[i][j];
+
+            z_row = z / SM_SIZE_COL;
+            z_col = z % SM_SIZE_COL;
+
+            tile_idx = z_col / 8;
+            intra_tile_col = z % 8;
+
+            if (tile_idx % 2 == 1)
+            {   
+                new_z_row = (z_row + 8);
+                new_z_col = (tile_idx/2) * 8;
+            }
+            else
+            {
+                new_z_row = z_row;
+                new_z_col = (tile_idx/2) * 8;
+            }
+
+            lookup_table1_h[i][j] = IDX(new_z_row, new_z_col + intra_tile_col, new_SM_SIZE_COL);
         }
     }
 
@@ -254,21 +279,21 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     }
 
     std::cout << "\nStencil2Row Matrix A Tile" << std::endl;
-    for (int i = 0; i < SM_SIZE_ROW; i++)
+    for (int i = 0; i < new_SM_SIZE_ROW; i++)
     {
-        for(int j = 0; j < SM_SIZE_COL; j++) 
+        for(int j = 0; j < new_SM_SIZE_COL; j++) 
         {
-            std::cout << debug_sharedmem[0][i * SM_SIZE_COL + j] << " ";
+            std::cout << debug_sharedmem[0][i * new_SM_SIZE_COL + j] << " ";
         }
         std::cout << std::endl;
     }
 
     std::cout << "\nStencil2Row Matrix B Tile" << std::endl;
-    for (int i = 0; i < SM_SIZE_ROW; i++)
+    for (int i = 0; i < new_SM_SIZE_ROW; i++)
     {
-        for(int j = 0; j < SM_SIZE_COL; j++) 
+        for(int j = 0; j < new_SM_SIZE_COL; j++) 
         {
-            std::cout << debug_sharedmem[1][i * SM_SIZE_COL + j] << " ";
+            std::cout << debug_sharedmem[1][i * new_SM_SIZE_COL + j] << " ";
         }
         std::cout << std::endl;
     }
