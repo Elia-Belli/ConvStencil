@@ -33,7 +33,7 @@ using namespace nvcuda;
 #define TENSOR_CORE_N 16 // 8
 #define TENSOR_CORE_K 8 // 4
 #define WARP_PER_BLOCK 8
-#define WARP_COLS 28
+#define WARP_COLS  ((7 * BLOCK_SIZE_ROW) / WARP_PER_BLOCK) // 28
 #define MMA_NUM ceild(UNIT_LENGTH * UNIT_LENGTH, 16) // 7
 // #define ACCS_PER_WARP (BLOCK_SIZE_COL * BLOCK_SIZE_ROW / 64 / WARP_PER_BLOCK)
 
@@ -84,10 +84,10 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
 
             #pragma unroll
-            for(int t = (tid % 32); t < 128; t+= 32) {
+            for(int t = (tid % 32); t < 64; t+= 32) {
                 int i = t / 8;
                 int j = t % 8;
-                in_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_K)]   = sharedmem[0][IDX(i, col + j + compute_idx * TENSOR_CORE_K * 2, SM_SIZE_COL)];
+                in_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_K)]     = sharedmem[0][IDX(i, col + j + compute_idx * TENSOR_CORE_K * 2, SM_SIZE_COL)];
                 in_pad_frag[warp_id][IDX(i + 8, j, TENSOR_CORE_K)] = sharedmem[0][IDX(i, col + j + 8 + compute_idx * TENSOR_CORE_K * 2, SM_SIZE_COL)];
             }
             
@@ -99,10 +99,10 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
 
             #pragma unroll
-            for(int t = (tid % 32); t < 128; t+= 32) {
+            for(int t = (tid % 32); t < 64; t+= 32) {
                 int i = t / 8;
                 int j = t % 8;
-                in_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_K)]   = sharedmem[1][IDX(i, col + j + compute_idx * TENSOR_CORE_K * 2, SM_SIZE_COL)];
+                in_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_K)]     = sharedmem[1][IDX(i, col + j + compute_idx * TENSOR_CORE_K * 2, SM_SIZE_COL)];
                 in_pad_frag[warp_id][IDX(i + 8, j, TENSOR_CORE_K)] = sharedmem[1][IDX(i, col + j + 8 + compute_idx * TENSOR_CORE_K * 2, SM_SIZE_COL)];
             }
             
