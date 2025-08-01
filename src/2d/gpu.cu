@@ -43,7 +43,6 @@ __constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
 __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict__ out, const int ldm, const int * __restrict__ lookup_table1, const int * __restrict__ lookup_table2) {
     
     __shared__ __align__(32) float sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
-    __shared__ float in_pad_frag[WARP_PER_BLOCK][TENSOR_CORE_M * TENSOR_CORE_K];
     __shared__ float out_pad_frag[WARP_PER_BLOCK][TENSOR_CORE_M * TENSOR_CORE_M];
 
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
@@ -52,6 +51,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
     int warp_id = threadIdx.x / 32;
 
     int mma_offset;
+    int load_offset = 4 * SM_SIZE_COL; // 8 * (SM_SIZE_COL / 2)
 
     // Load data into shared memory using lookup tables
     /*
@@ -63,8 +63,12 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
     for (int i = tid; i < D_BLOCK_SIZE_ROW * D_BLOCK_SIZE_COL; i += totalThreads) {
         int row = i / D_BLOCK_SIZE_COL;
         int col = i % D_BLOCK_SIZE_COL;
-        sharedmem[0][lookup_table1[i]] = in[begin + IDX(row, col, ldm)];
-        sharedmem[1][lookup_table2[i]] = in[begin + IDX(row, col, ldm)];
+        int s_row1 = lookup_table1[i] / SM_SIZE_ROW;
+        int s_col1 = lookup_table1[i] / SM_SIZE_COL;
+        int s_row2 = lookup_table2[i] / SM_SIZE_ROW;
+        int s_col2 = lookup_table2[i] / SM_SIZE_COL;
+        sharedmem[0][IDX(s_row1, s_col1 + ( s_col1 % 16 > 8) ? load_offset : 0, SM_SIZE_COL / 2)] = in[begin + IDX(row, col, ldm)];
+        sharedmem[1][IDX(s_row2, s_col2 + ( s_col2 % 16 > 8) ? load_offset : 0, SM_SIZE_COL / 2)] = in[begin + IDX(row, col, ldm)];
     }
     __syncthreads();
 
@@ -84,33 +88,13 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 
         #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
-            mma_offset = compute_idx * TENSOR_CORE_K * 2;
-
-            #pragma unroll
-            for(int t = (tid % 32); t < 64; t+= 32) {
-                int i = t / 8;
-                int j = t % 8;
-                in_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_K)]     = sharedmem[0][IDX(i, col + j + mma_offset, SM_SIZE_COL)];
-                in_pad_frag[warp_id][IDX(i + 8, j, TENSOR_CORE_K)] = sharedmem[0][IDX(i, col + j + 8 + mma_offset, SM_SIZE_COL)];
-            }
-            
-            wmma::load_matrix_sync(in_frag, in_pad_frag[warp_id], TENSOR_CORE_K);
+            wmma::load_matrix_sync(in_frag, sharedmem[0] + (compute_idx * TENSOR_CORE_K + col), TENSOR_CORE_K);
             wmma::mma_sync(acc_frag, in_frag, param_frag[0][compute_idx], acc_frag);
         }
 
         #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
-            mma_offset = compute_idx * TENSOR_CORE_K * 2;
-
-            #pragma unroll
-            for(int t = (tid % 32); t < 64; t+= 32) {
-                int i = t / 8;
-                int j = t % 8;
-                in_pad_frag[warp_id][IDX(i, j, TENSOR_CORE_K)]     = sharedmem[1][IDX(i, col + j + mma_offset, SM_SIZE_COL)];
-                in_pad_frag[warp_id][IDX(i + 8, j, TENSOR_CORE_K)] = sharedmem[1][IDX(i, col + j + 8 + mma_offset, SM_SIZE_COL)];
-            }
-            
-            wmma::load_matrix_sync(in_frag, in_pad_frag[warp_id], TENSOR_CORE_K);
+            wmma::load_matrix_sync(in_frag, sharedmem[1] + (compute_idx * TENSOR_CORE_K + col), TENSOR_CORE_K);
             wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);
         }
 
