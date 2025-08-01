@@ -81,13 +81,13 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 
         #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
-            wmma::load_matrix_sync(in_frag, sharedmem[0] + (compute_idx * TENSOR_CORE_K + col), TENSOR_CORE_K);
+            wmma::load_matrix_sync(in_frag, sharedmem[0] + (compute_idx * TENSOR_CORE_K + col), SM_SIZE_COL / 2);
             wmma::mma_sync(acc_frag, in_frag, param_frag[0][compute_idx], acc_frag);
         }
 
         #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
-            wmma::load_matrix_sync(in_frag, sharedmem[1] + (compute_idx * TENSOR_CORE_K + col), TENSOR_CORE_K);
+            wmma::load_matrix_sync(in_frag, sharedmem[1] + (compute_idx * TENSOR_CORE_K + col), SM_SIZE_COL / 2);
             wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);
         }
 
