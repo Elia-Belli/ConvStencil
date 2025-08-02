@@ -20,14 +20,18 @@ using namespace nvcuda;
 #define ceild(n,d)	(((n)-1)/(d) + 1)
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
 
-#define BLOCK_SIZE_ROW 32
-#define BLOCK_SIZE_COL 128
+#define BLOCK_SIZE_ROW 64
+#define BLOCK_SIZE_COL 64
 #define HALO 3
-#define D_BLOCK_SIZE_COL (BLOCK_SIZE_COL + HALO * 2)    // 64 + 6 = 70
+#define D_BLOCK_SIZE_COL (BLOCK_SIZE_COL + HALO * 2)    // 128 + 6 = 134
 #define D_BLOCK_SIZE_ROW (BLOCK_SIZE_ROW + HALO * 2)    // 32 + 6  = 38
 #define PAD 2
 #define SM_SIZE_COL (7 * D_BLOCK_SIZE_ROW + PAD)    // 7 * 38 + 2  = 268
-#define SM_SIZE_ROW (D_BLOCK_SIZE_COL / 8)          // 70 / 8     = 8
+#define SM_SIZE_ROW (D_BLOCK_SIZE_COL / 8)          // 134 / 8     = 16
+
+#define new_SM_SIZE_ROW (SM_SIZE_ROW * 2)
+#define new_SM_SIZE_COL (SM_SIZE_COL / 2 + 2)
+
 #define UNIT_LENGTH 7
 #define TENSOR_CORE_M 16 // 8
 #define TENSOR_CORE_N 16 // 8
@@ -81,13 +85,13 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
 
         #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
-            wmma::load_matrix_sync(in_frag, sharedmem[0] + (compute_idx * TENSOR_CORE_K + col), SM_SIZE_COL / 2);
+            wmma::load_matrix_sync(in_frag, sharedmem[0] + (compute_idx * TENSOR_CORE_K + col), new_SM_SIZE_COL);
             wmma::mma_sync(acc_frag, in_frag, param_frag[0][compute_idx], acc_frag);
         }
 
         #pragma unroll
         for (int compute_idx = 0; compute_idx < MMA_NUM; compute_idx++) {
-            wmma::load_matrix_sync(in_frag, sharedmem[1] + (compute_idx * TENSOR_CORE_K + col), SM_SIZE_COL / 2);
+            wmma::load_matrix_sync(in_frag, sharedmem[1] + (compute_idx * TENSOR_CORE_K + col), new_SM_SIZE_COL);
             wmma::mma_sync(acc_frag, in_frag, param_frag[1][compute_idx], acc_frag);
         }
 
@@ -236,8 +240,6 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     }
 
     // Re-organizing Lookup Tables
-    int new_SM_SIZE_ROW = SM_SIZE_ROW * 2;
-    int new_SM_SIZE_COL = SM_SIZE_COL / 2;
     int z1, z_row1, z_col1, tile_idx1, new_z_row1, new_z_col1, intra_tile_col1;
     int z2, z_row2, z_col2, tile_idx2, new_z_row2, new_z_col2, intra_tile_col2;
 
@@ -277,6 +279,20 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
             {
                 new_z_row2 = z_row2;
                 new_z_col2 = (tile_idx2/2) * 8;
+            }
+
+            if(z1 == SM_SIZE_ROW * SM_SIZE_COL - 1)
+            {
+                new_z_row1 = new_SM_SIZE_ROW;
+                new_z_col1 = new_SM_SIZE_COL;
+                intra_tile_col1 = -1;
+            }
+
+            if(z2 == SM_SIZE_ROW * SM_SIZE_COL - 1)
+            {
+                new_z_row2 = new_SM_SIZE_ROW;
+                new_z_col2 = new_SM_SIZE_COL;
+                intra_tile_col2 = -1;
             }
 
             lookup_table1_h[i][j] = IDX(new_z_row1, new_z_col1 + intra_tile_col1, new_SM_SIZE_COL);
