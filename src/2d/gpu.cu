@@ -32,7 +32,7 @@ using namespace nvcuda;
 #define TENSOR_CORE_M 16 // 8
 #define TENSOR_CORE_N 16 // 8
 #define TENSOR_CORE_K 8 // 4
-#define WARP_PER_BLOCK 16
+#define WARP_PER_BLOCK 8
 #define WARP_COLS  ((7 * BLOCK_SIZE_ROW) / WARP_PER_BLOCK) // 28
 #define MMA_NUM ceild(UNIT_LENGTH * UNIT_LENGTH, 16) // 4
 // #define ACCS_PER_WARP (BLOCK_SIZE_COL * BLOCK_SIZE_ROW / 64 / WARP_PER_BLOCK)
