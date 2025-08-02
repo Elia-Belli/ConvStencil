@@ -21,7 +21,7 @@ using namespace nvcuda;
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
 
 #define BLOCK_SIZE_ROW 32
-#define BLOCK_SIZE_COL 64
+#define BLOCK_SIZE_COL 128
 #define HALO 3
 #define D_BLOCK_SIZE_COL (BLOCK_SIZE_COL + HALO * 2)    // 64 + 6 = 70
 #define D_BLOCK_SIZE_ROW (BLOCK_SIZE_ROW + HALO * 2)    // 32 + 6  = 38
@@ -32,9 +32,9 @@ using namespace nvcuda;
 #define TENSOR_CORE_M 16 // 8
 #define TENSOR_CORE_N 16 // 8
 #define TENSOR_CORE_K 8 // 4
-#define WARP_PER_BLOCK 8
+#define WARP_PER_BLOCK 16
 #define WARP_COLS  ((7 * BLOCK_SIZE_ROW) / WARP_PER_BLOCK) // 28
-#define MMA_NUM ceild(UNIT_LENGTH * UNIT_LENGTH, 16) // 7
+#define MMA_NUM ceild(UNIT_LENGTH * UNIT_LENGTH, 16) // 4
 // #define ACCS_PER_WARP (BLOCK_SIZE_COL * BLOCK_SIZE_ROW / 64 / WARP_PER_BLOCK)
 
 __constant__ real_t param_matrix_d[2 * MMA_NUM * TENSOR_CORE_M * TENSOR_CORE_K];
