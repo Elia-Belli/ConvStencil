@@ -20,9 +20,9 @@ const char *ShapeStr[5] = {
 
 
 // Fill the matrix with random numbers or indices
-#define FILL_RANDOM
+//#define FILL_RANDOM
 //#define FILL_INDEX
-//#define FILL_5_DIAGONAL
+#define FILL_DIAGONAL
 
 // Check the correctness of the result or not
 #define CHECK_ERROR
@@ -247,11 +247,11 @@ int main(int argc, char *argv[])
     real_t param_box_2d1r[49] = {0.0};
     real_t param_star_2d1r[49] = {0.0};
 
-    param_box_2d1r[17] = 1.0;
-    param_box_2d1r[23] = 1.0;
-    param_box_2d1r[24] = -4.0;
-    param_box_2d1r[25] = 1.0;
-    param_box_2d1r[31] = 1.0;
+    param_box_2d1r[17] = 0.25;
+    param_box_2d1r[23] = 0.25;
+    param_box_2d1r[24] = -1.0;
+    param_box_2d1r[25] = 0.25;
+    param_box_2d1r[31] = 0.25;
 
 
     // for(int i=0; i < 49; i++)
@@ -259,62 +259,6 @@ int main(int argc, char *argv[])
     //     param_box_2d1r[i] = i+1;
     // }
 
-    /*
-    for (int i = 0; i < 49; i++)
-    {
-        param_box_2d1r[i] = 0.021;
-    }
-
-    
-    param_box_2d1r[16] = (3 * param_1r[0] * param_1r[0] * param_1r[8] + 6 * param_1r[0] * param_1r[1] * param_1r[7] + 6 * param_1r[0] * param_1r[2] * param_1r[6] + 6 * param_1r[0] * param_1r[3] * param_1r[5] + 3 * param_1r[0] * param_1r[4] * param_1r[4] + 3 * param_1r[1] * param_1r[1] * param_1r[6] + 6 * param_1r[1] * param_1r[3] * param_1r[4] + 3 * param_1r[2] * param_1r[3] * param_1r[3]);
-    param_box_2d1r[15] = (3 * param_1r[0] * param_1r[0] * param_1r[7] + 6 * param_1r[0] * param_1r[1] * param_1r[6] + 6 * param_1r[0] * param_1r[3] * param_1r[4] + 3 * param_1r[1] * param_1r[3] * param_1r[3]);
-    param_box_2d1r[14] = (3 * param_1r[0] * param_1r[0] * param_1r[6] + 3 * param_1r[0] * param_1r[3] * param_1r[3]);
-    param_box_2d1r[17] = (6 * param_1r[0] * param_1r[1] * param_1r[8] + 6 * param_1r[0] * param_1r[2] * param_1r[7] + 6 * param_1r[0] * param_1r[4] * param_1r[5] + 3 * param_1r[1] * param_1r[1] * param_1r[7] + 6 * param_1r[1] * param_1r[2] * param_1r[6] + 6 * param_1r[1] * param_1r[3] * param_1r[5] + 3 * param_1r[1] * param_1r[4] * param_1r[4] + 6 * param_1r[2] * param_1r[3] * param_1r[4]);
-    param_box_2d1r[18] = (6 * param_1r[0] * param_1r[2] * param_1r[8] + 3 * param_1r[0] * param_1r[5] * param_1r[5] + 3 * param_1r[1] * param_1r[1] * param_1r[8] + 6 * param_1r[1] * param_1r[2] * param_1r[7] + 6 * param_1r[1] * param_1r[4] * param_1r[5] + 3 * param_1r[2] * param_1r[2] * param_1r[6] + 6 * param_1r[2] * param_1r[3] * param_1r[5] + 3 * param_1r[2] * param_1r[4] * param_1r[4]);
-    param_box_2d1r[19] = (6 * param_1r[1] * param_1r[2] * param_1r[8] + 3 * param_1r[1] * param_1r[5] * param_1r[5] + 3 * param_1r[2] * param_1r[2] * param_1r[7] + 6 * param_1r[2] * param_1r[4] * param_1r[5]);
-    param_box_2d1r[20] = (3 * param_1r[2] * param_1r[2] * param_1r[8] + 3 * param_1r[2] * param_1r[5] * param_1r[5]);
-    param_box_2d1r[9] = (3 * param_1r[0] * param_1r[0] * param_1r[5] + 6 * param_1r[0] * param_1r[1] * param_1r[4] + 6 * param_1r[0] * param_1r[2] * param_1r[3] + 3 * param_1r[1] * param_1r[1] * param_1r[3]);
-    param_box_2d1r[8] = (3 * param_1r[0] * param_1r[0] * param_1r[4] + 6 * param_1r[0] * param_1r[1] * param_1r[3]);
-    param_box_2d1r[7] = 3 * param_1r[0] * param_1r[0] * param_1r[3];
-    param_box_2d1r[10] = (6 * param_1r[0] * param_1r[1] * param_1r[5] + 6 * param_1r[0] * param_1r[2] * param_1r[4] + 3 * param_1r[1] * param_1r[1] * param_1r[4] + 6 * param_1r[1] * param_1r[2] * param_1r[3]);
-    param_box_2d1r[11] = (6 * param_1r[0] * param_1r[2] * param_1r[5] + 3 * param_1r[1] * param_1r[1] * param_1r[5] + 6 * param_1r[1] * param_1r[2] * param_1r[4] + 3 * param_1r[2] * param_1r[2] * param_1r[3]);
-    param_box_2d1r[12] = (6 * param_1r[1] * param_1r[2] * param_1r[5] + 3 * param_1r[2] * param_1r[2] * param_1r[4]);
-    param_box_2d1r[13] = 3 * param_1r[2] * param_1r[2] * param_1r[5];
-    param_box_2d1r[2] = (3 * param_1r[0] * param_1r[0] * param_1r[2] + 3 * param_1r[0] * param_1r[1] * param_1r[1]);
-    param_box_2d1r[1] = 3 * param_1r[0] * param_1r[0] * param_1r[1];
-    param_box_2d1r[0] = param_1r[0] * param_1r[0] * param_1r[0];
-    param_box_2d1r[3] = (6 * param_1r[0] * param_1r[1] * param_1r[2] + param_1r[1] * param_1r[1] * param_1r[1]);
-    param_box_2d1r[4] = (3 * param_1r[0] * param_1r[2] * param_1r[2] + 3 * param_1r[1] * param_1r[1] * param_1r[2]);
-    param_box_2d1r[5] = 3 * param_1r[1] * param_1r[2] * param_1r[2];
-    param_box_2d1r[6] = param_1r[2] * param_1r[2] * param_1r[2];
-    param_box_2d1r[23] = (6 * param_1r[0] * param_1r[3] * param_1r[8] + 6 * param_1r[0] * param_1r[4] * param_1r[7] + 6 * param_1r[0] * param_1r[5] * param_1r[6] + 6 * param_1r[1] * param_1r[3] * param_1r[7] + 6 * param_1r[1] * param_1r[4] * param_1r[6] + 6 * param_1r[2] * param_1r[3] * param_1r[6] + 3 * param_1r[3] * param_1r[3] * param_1r[5] + 3 * param_1r[3] * param_1r[4] * param_1r[4]);
-    param_box_2d1r[22] = (6 * param_1r[0] * param_1r[3] * param_1r[7] + 6 * param_1r[0] * param_1r[4] * param_1r[6] + 6 * param_1r[1] * param_1r[3] * param_1r[6] + 3 * param_1r[3] * param_1r[3] * param_1r[4]);
-    param_box_2d1r[21] = (6 * param_1r[0] * param_1r[3] * param_1r[6] + param_1r[3] * param_1r[3] * param_1r[3]);
-    param_box_2d1r[24] = (6 * param_1r[0] * param_1r[4] * param_1r[8] + 6 * param_1r[0] * param_1r[5] * param_1r[7] + 6 * param_1r[1] * param_1r[3] * param_1r[8] + 6 * param_1r[1] * param_1r[4] * param_1r[7] + 6 * param_1r[1] * param_1r[5] * param_1r[6] + 6 * param_1r[2] * param_1r[3] * param_1r[7] + 6 * param_1r[2] * param_1r[4] * param_1r[6] + 6 * param_1r[3] * param_1r[4] * param_1r[5] + pow(param_1r[4], 3));
-    param_box_2d1r[25] = (6 * param_1r[0] * param_1r[5] * param_1r[8] + 6 * param_1r[1] * param_1r[4] * param_1r[8] + 6 * param_1r[1] * param_1r[5] * param_1r[7] + 6 * param_1r[2] * param_1r[3] * param_1r[8] + 6 * param_1r[2] * param_1r[4] * param_1r[7] + 6 * param_1r[2] * param_1r[5] * param_1r[6] + 3 * param_1r[3] * param_1r[5] * param_1r[5] + 3 * param_1r[4] * param_1r[4] * param_1r[5]);
-    param_box_2d1r[26] = (6 * param_1r[1] * param_1r[5] * param_1r[8] + 6 * param_1r[2] * param_1r[4] * param_1r[8] + 6 * param_1r[2] * param_1r[5] * param_1r[7] + 3 * param_1r[4] * param_1r[5] * param_1r[5]);
-    param_box_2d1r[27] = (6 * param_1r[2] * param_1r[5] * param_1r[8] + param_1r[5] * param_1r[5] * param_1r[5]);
-    param_box_2d1r[30] = (6 * param_1r[0] * param_1r[6] * param_1r[8] + 3 * param_1r[0] * param_1r[7] * param_1r[7] + 6 * param_1r[1] * param_1r[6] * param_1r[7] + 3 * param_1r[2] * param_1r[6] * param_1r[6] + 3 * param_1r[3] * param_1r[3] * param_1r[8] + 6 * param_1r[3] * param_1r[4] * param_1r[7] + 6 * param_1r[3] * param_1r[5] * param_1r[6] + 3 * param_1r[4] * param_1r[4] * param_1r[6]);
-    param_box_2d1r[29] = (6 * param_1r[0] * param_1r[6] * param_1r[7] + 3 * param_1r[1] * param_1r[6] * param_1r[6] + 3 * param_1r[3] * param_1r[3] * param_1r[7] + 6 * param_1r[3] * param_1r[4] * param_1r[6]);
-    param_box_2d1r[28] = (3 * param_1r[0] * param_1r[6] * param_1r[6] + 3 * param_1r[3] * param_1r[3] * param_1r[6]);
-    param_box_2d1r[31] = (6 * param_1r[0] * param_1r[7] * param_1r[8] + 6 * param_1r[1] * param_1r[6] * param_1r[8] + 3 * param_1r[1] * param_1r[7] * param_1r[7] + 6 * param_1r[2] * param_1r[6] * param_1r[7] + 6 * param_1r[3] * param_1r[4] * param_1r[8] + 6 * param_1r[3] * param_1r[5] * param_1r[7] + 3 * param_1r[4] * param_1r[4] * param_1r[7] + 6 * param_1r[4] * param_1r[5] * param_1r[6]);
-    param_box_2d1r[32] = (3 * param_1r[0] * param_1r[8] * param_1r[8] + 6 * param_1r[1] * param_1r[7] * param_1r[8] + 6 * param_1r[2] * param_1r[6] * param_1r[8] + 3 * param_1r[2] * param_1r[7] * param_1r[7] + 6 * param_1r[3] * param_1r[5] * param_1r[8] + 3 * param_1r[4] * param_1r[4] * param_1r[8] + 6 * param_1r[4] * param_1r[5] * param_1r[7] + 3 * param_1r[5] * param_1r[5] * param_1r[6]);
-    param_box_2d1r[33] = (3 * param_1r[1] * param_1r[8] * param_1r[8] + 6 * param_1r[2] * param_1r[7] * param_1r[8] + 6 * param_1r[4] * param_1r[5] * param_1r[8] + 3 * param_1r[5] * param_1r[5] * param_1r[7]);
-    param_box_2d1r[34] = (3 * param_1r[2] * param_1r[8] * param_1r[8] + 3 * param_1r[5] * param_1r[5] * param_1r[8]);    param_box_2d1r[37] = (6 * param_1r[3] * param_1r[6] * param_1r[8] + 3 * param_1r[3] * param_1r[7] * param_1r[7] + 6 * param_1r[4] * param_1r[6] * param_1r[7] + 3 * param_1r[5] * param_1r[6] * param_1r[6]);
-    param_box_2d1r[36] = (6 * param_1r[3] * param_1r[6] * param_1r[7] + 3 * param_1r[4] * param_1r[6] * param_1r[6]);
-    param_box_2d1r[35] = 3 * param_1r[3] * param_1r[6] * param_1r[6];
-    param_box_2d1r[38] = (6 * param_1r[3] * param_1r[7] * param_1r[8] + 6 * param_1r[4] * param_1r[6] * param_1r[8] + 3 * param_1r[4] * param_1r[7] * param_1r[7] + 6 * param_1r[5] * param_1r[6] * param_1r[7]);
-    param_box_2d1r[39] = (3 * param_1r[3] * param_1r[8] * param_1r[8] + 6 * param_1r[4] * param_1r[7] * param_1r[8] + 6 * param_1r[5] * param_1r[6] * param_1r[8] + 3 * param_1r[5] * param_1r[7] * param_1r[7]);
-    param_box_2d1r[40] = (3 * param_1r[4] * param_1r[8] * param_1r[8] + 6 * param_1r[5] * param_1r[7] * param_1r[8]);
-    param_box_2d1r[41] = 3 * param_1r[5] * param_1r[8] * param_1r[8];
-    param_box_2d1r[44] = (3 * param_1r[6] * param_1r[6] * param_1r[8] + 3 * param_1r[6] * param_1r[7] * param_1r[7]);
-    param_box_2d1r[43] = 3 * param_1r[6] * param_1r[6] * param_1r[7];
-    param_box_2d1r[42] = param_1r[6] * param_1r[6] * param_1r[6];
-    param_box_2d1r[45] = (6 * param_1r[6] * param_1r[7] * param_1r[8] + param_1r[7] * param_1r[7] * param_1r[7]);
-    param_box_2d1r[46] = (3 * param_1r[6] * param_1r[8] * param_1r[8] + 3 * param_1r[7] * param_1r[7] * param_1r[8]);
-    param_box_2d1r[47] = 3 * param_1r[7] * param_1r[8] * param_1r[8];
-    param_box_2d1r[48] = param_1r[8] * param_1r[8] * param_1r[8];
-    */
     
     real_t *param;
     int halo;
@@ -369,7 +313,7 @@ std::uniform_real_distribution<real_t> dist(0.0, 10.0);
             matrix[i * cols + j] = (real_t)(i * (cols - 2) + j);
         }
     }
-#elif defined(FILL_5_DIAGONAL)
+#elif defined(FILL_DIAGONAL)
     for (int i = 0; i < rows; ++i) {
         for(int j = 0; j < cols; ++j) {
             
