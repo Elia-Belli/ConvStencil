@@ -20,6 +20,9 @@ using namespace nvcuda;
 #define ceild(n,d)	(((n)-1)/(d) + 1)
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
 
+int remap_to_shared(int z);
+
+
 #define BLOCK_SIZE_ROW 64
 #define BLOCK_SIZE_COL 64
 #define HALO 3
@@ -30,7 +33,7 @@ using namespace nvcuda;
 #define SM_SIZE_ROW (D_BLOCK_SIZE_COL / 8)          // 134 / 8     = 16
 
 #define new_SM_SIZE_ROW (SM_SIZE_ROW * 2)
-#define new_SM_SIZE_COL (SM_SIZE_COL / 2 + 2)
+#define new_SM_SIZE_COL (SM_SIZE_COL / 2)
 
 #define UNIT_LENGTH 7
 #define TENSOR_CORE_M 16 // 8
@@ -240,63 +243,11 @@ void gpu_box_2d1r(const real_t * __restrict__ in, real_t * __restrict__ out, con
     }
 
     // Re-organizing Lookup Tables
-    int z1, z_row1, z_col1, tile_idx1, new_z_row1, new_z_col1, intra_tile_col1;
-    int z2, z_row2, z_col2, tile_idx2, new_z_row2, new_z_col2, intra_tile_col2;
-
-    for (int i = 0; i < D_BLOCK_SIZE_ROW; i++) {
-        for (int j = 0; j < D_BLOCK_SIZE_COL; j++) {
-
-            z1 = lookup_table1_h[i][j];
-            z2 = lookup_table2_h[i][j];
-
-            z_row1 = z1 / SM_SIZE_COL;
-            z_col1 = z1 % SM_SIZE_COL;
-            z_row2 = z2 / SM_SIZE_COL;
-            z_col2 = z2 % SM_SIZE_COL;
-
-            tile_idx1 = z_col1 / 8;
-            intra_tile_col1 = z1 % 8;
-            tile_idx2 = z_col2 / 8;
-            intra_tile_col2 = z2 % 8;
-
-            if (tile_idx1 % 2 == 1)
-            {   
-                new_z_row1 = (z_row1 + 8);
-                new_z_col1 = (tile_idx1/2) * 8;
-            }
-            else
-            {
-                new_z_row1 = z_row1;
-                new_z_col1 = (tile_idx1/2) * 8;
-            }
-
-            if (tile_idx2 % 2 == 1)
-            {   
-                new_z_row2 = (z_row2 + 8);
-                new_z_col2 = (tile_idx2/2) * 8;
-            }
-            else
-            {
-                new_z_row2 = z_row2;
-                new_z_col2 = (tile_idx2/2) * 8;
-            }
-
-            if(z1 == SM_SIZE_ROW * SM_SIZE_COL - 1)
-            {
-                new_z_row1 = new_SM_SIZE_ROW;
-                new_z_col1 = new_SM_SIZE_COL;
-                intra_tile_col1 = -1;
-            }
-
-            if(z2 == SM_SIZE_ROW * SM_SIZE_COL - 1)
-            {
-                new_z_row2 = new_SM_SIZE_ROW;
-                new_z_col2 = new_SM_SIZE_COL;
-                intra_tile_col2 = -1;
-            }
-
-            lookup_table1_h[i][j] = IDX(new_z_row1, new_z_col1 + intra_tile_col1, new_SM_SIZE_COL);
-            lookup_table2_h[i][j] = IDX(new_z_row2, new_z_col2 + intra_tile_col2, new_SM_SIZE_COL);
+    for (int i = 0; i < D_BLOCK_SIZE_ROW - 1; i++) {
+        for (int j = 0; j < D_BLOCK_SIZE_COL; j++)
+        {
+            lookup_table1_h[i][j] = remap_to_shared(lookup_table1_h[i][j]);
+            lookup_table2_h[i][j] = remap_to_shared(lookup_table2_h[i][j]);
         }
     }
 
@@ -419,3 +370,30 @@ __global__ void kernel2d_fp64 (const double * __restrict__ in, double * __restri
     }
 }
 */
+
+
+int remap_to_shared(int z){
+    
+    int new_z_row, new_z_col;
+    int z_row = z / SM_SIZE_COL;
+    int z_col = z % SM_SIZE_COL;
+
+    int tile_idx = z_col / 8;
+    int intra_tile_col = z_col % 8;
+
+    if (tile_idx % 2 == 1)
+    {   
+        new_z_row = (z_row + 8);
+        new_z_col = (tile_idx/2) * 8;
+    }
+    else
+    {
+        new_z_row = z_row;
+        new_z_col = (tile_idx/2) * 8;
+    }
+
+    if(z == SM_SIZE_ROW * SM_SIZE_COL -1) 
+        return new_SM_SIZE_COL * new_SM_SIZE_ROW - 1;
+
+    return IDX(new_z_row, new_z_col + intra_tile_col, new_SM_SIZE_COL);
+}
