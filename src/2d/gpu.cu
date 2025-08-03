@@ -19,7 +19,7 @@ using namespace nvcuda;
 
 #define ceild(n,d)	(((n)-1)/(d) + 1)
 
-#define BLOCK_SIZE_ROW 16 // 32
+#define BLOCK_SIZE_ROW 32 // 32
 #define BLOCK_SIZE_COL 128  // 64
 #define HALO 3
 #define D_BLOCK_SIZE_COL (BLOCK_SIZE_COL + HALO * 2)    // 128 + 6 = 134
@@ -32,7 +32,7 @@ using namespace nvcuda;
 #define TENSOR_CORE_N 16 // 8
 #define TENSOR_CORE_K 8 // 4
 #define IDX(x, y, ldm) ((x) * (ldm) + (y))
-#define WARP_PER_BLOCK 16
+#define WARP_PER_BLOCK 8
 #define WARP_COLS (7 * BLOCK_SIZE_ROW / WARP_PER_BLOCK) 
 #define MMA_NUM ceild(UNIT_LENGTH * UNIT_LENGTH, TENSOR_CORE_K) // 7
 // #define ACCS_PER_WARP (BLOCK_SIZE_COL * BLOCK_SIZE_ROW / 64 / WARP_PER_BLOCK)
@@ -44,6 +44,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
     
     __shared__ __align__(32) float sharedmem[2][SM_SIZE_ROW * SM_SIZE_COL];
     __shared__ float out_frag[WARP_PER_BLOCK][TENSOR_CORE_M * TENSOR_CORE_M];
+
     int begin = IDX(blockIdx.x * BLOCK_SIZE_ROW, blockIdx.y * BLOCK_SIZE_COL + 1, ldm);
     int tid = threadIdx.x;
     int totalThreads = blockDim.x;
@@ -65,7 +66,7 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
     }
     __syncthreads();
 
-
+    // Load Weight Matrices from Constant Memory
     wmma::fragment<wmma::matrix_b, 16, 16, 8, wmma::precision::tf32, wmma::row_major> param_frag[2][MMA_NUM];
     #pragma unroll
     for (int i = 0; i < MMA_NUM; i++) {
@@ -73,6 +74,17 @@ __global__ void kernel2d_fp32 (const float * __restrict__ in, float * __restrict
         wmma::load_matrix_sync(param_frag[1][i], param_matrix_d + (MMA_NUM + i) * TENSOR_CORE_M * TENSOR_CORE_K, TENSOR_CORE_M);
     }
 
+    // Dual Tessellations
+    /*
+        Each warp performs (2 * WARP_COLS / UNIT_LENGHT) Dual Tessellations.
+        Each iteration computes 2 Dual Tessellation in 5 phases:
+        1. Reset accumulator to 0
+        2. Compute part A of the tessellations: Tile A x Weight Tile A (via MMA_NUM tensor core operations)
+        3. Compute part B of the tessellations: Tile B x Weight Tile B (via MMA_NUM tensor core operations)
+        4. Move the output from Tensor Cores to Shared Memory
+        5. Store the result of the 2 Dual Tessellation in Global Memory
+
+    */
     wmma::fragment<wmma::accumulator, 16, 16, 8, float> acc_frag;
     wmma::fragment<wmma::matrix_a, 16, 16, 8, wmma::precision::tf32, wmma::row_major> in_frag;
     for (int col = warp_id * WARP_COLS; col < (warp_id + 1) * WARP_COLS; col += UNIT_LENGTH) {
